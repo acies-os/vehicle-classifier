@@ -11,9 +11,7 @@ import click
 import numpy as np
 from acies.node import Node
 from acies.node import common_options
-
-LOG_LEVEL = os.environ.get("ACIES_LOG", "error").upper()
-logging.basicConfig(level=LOG_LEVEL)
+from acies.node import logger
 
 
 class Detector(Node):
@@ -32,7 +30,7 @@ class Detector(Node):
         self.input_len = 3
 
     def load_model(self, path_to_weight: str):
-        logging.info(f"load model from {path_to_weight}, but this is a dummy model")
+        logger.info(f"load model from {path_to_weight}, but this is a dummy model")
 
         def dummy_model(*args, **kwargs):
             return [
@@ -70,7 +68,6 @@ class Detector(Node):
             len(self.buffs["sei"]) >= self.input_len
             and len(self.buffs["aco"]) >= self.input_len
         ):
-            logging.info("running inference")
             input_sei = [self.buffs["sei"].popleft() for _ in range(self.input_len)]
             input_aco = [self.buffs["aco"].popleft() for _ in range(self.input_len)]
 
@@ -89,6 +86,7 @@ class Detector(Node):
             assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
 
             result = self.model(input_sei, input_aco)
+            logger.info(f"{result}")
             self.publish(f"{self.get_hostname()}/classifier", json.dumps(result))
 
     async def run(self):
