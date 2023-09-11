@@ -17,17 +17,21 @@ class Detector(Node):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
-        # your inference logic
+        # your inference model
         self.model = self.load_model(weight)
+
+        # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
 
-        # how many input messages the model needs
+        # how many input messages the model needs to run inference once
         # each message contains 1s of data:
         #     seismic  :    200 samples
         #     acoustic : 16_000 samples
         self.input_len = 3
 
     def load_model(self, path_to_weight: str):
+        """Load model from give path."""
+
         logger.info(f"load model from {path_to_weight}, but this is a dummy model")
 
         def dummy_model(*args, **kwargs):
@@ -50,8 +54,7 @@ class Detector(Node):
             raise KeyError(f"{data} should contain key: `sh3` or `eh3` or `samples`")
 
     def inference(self):
-        # print("enter inference")
-        # add messages to buffers
+        # buffer incoming messages
         for k, q in self.queue.items():
             if not q.empty():
                 data = q.get(False)
@@ -87,7 +90,14 @@ class Detector(Node):
 
     async def run(self):
         try:
+            # Register your inference func as a callback.
             await self.add_callback(self.inference)
+
+            # You can add more callbacks if needed, they will be run concurrently.
+            # await self.add_callback(self.another_callback)
+            # await self.add_callback(self.3rd_callback)
+
+            # self.start() must be called
             await self.start()
         except KeyboardInterrupt:
             self.close()
