@@ -57,6 +57,7 @@ class Detector(Node):
         # buffer incoming messages
         for k, q in self.queue.items():
             if not q.empty():
+                logger.debug(f"enqueue: {k}")
                 data = q.get(False)
                 data = json.loads(data)
                 mod, data = self.get_array(data)
