@@ -1,7 +1,5 @@
 import asyncio
 import json
-import logging
-import os
 from collections import deque
 from typing import Dict
 from typing import List
@@ -56,11 +54,9 @@ class Detector(Node):
         # add messages to buffers
         for k, q in self.queue.items():
             if not q.empty():
-                logging.debug(f"enqueu {k}")
                 data = q.get(False)
                 data = json.loads(data)
                 mod, data = self.get_array(data)
-                logging.debug(f"{mod}")
                 self.buffs[mod].append(data)
 
         # check if we have enough data to run inference
