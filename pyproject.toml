@@ -8,6 +8,10 @@ authors = [
 dependencies = [
     "numpy>=1.24.4",
     "acies-py @ git+ssh://github.com/acies-os/acies-py.git",
+    "vehicle-detection-baselines @ git+ssh://github.com/acies-os/vehicle-detection-baselines.git",
+    "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
+    "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
+    "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
