@@ -29,6 +29,9 @@ class Detector(Node):
         #     acoustic : 16_000 samples
         self.input_len = 3
 
+        # the topic we publish inference results to
+        self.pub_topic = f"{self.get_hostname()}/classifier"
+
     def load_model(self, path_to_weight: str):
         """Load model from give path."""
 
@@ -86,8 +89,8 @@ class Detector(Node):
             assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
 
             result = self.model(input_sei, input_aco)
-            logger.info(f"{result}")
-            self.publish(f"{self.get_hostname()}/classifier", json.dumps(result))
+            logger.info(f"{self.pub_topic}: {result}")
+            self.publish(self.pub_topic, json.dumps(result))
 
     async def run(self):
         try:
