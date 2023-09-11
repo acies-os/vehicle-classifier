@@ -1,9 +1,6 @@
 import asyncio
 import json
 from collections import deque
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import click
 import numpy as np
@@ -13,7 +10,7 @@ from acies.node import logger
 from acies.vehicle_classifier.utils import get_array
 
 
-class Detector(Node):
+class SimpleClassifier(Node):
     def __init__(self, weight, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
@@ -106,7 +103,7 @@ class Detector(Node):
     type=str,
 )
 def main(mode, connect, listen, key, weight):
-    detector = Detector(
+    classifier = SimpleClassifier(
         mode=mode,
         connect=connect,
         listen=listen,
@@ -114,4 +111,4 @@ def main(mode, connect, listen, key, weight):
         pub_keys=[],
         weight=weight,
     )
-    asyncio.run(detector.run())
+    asyncio.run(classifier.run())

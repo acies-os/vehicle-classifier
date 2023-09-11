@@ -1,9 +1,13 @@
 [project]
 name = "acies-vehicle-classifier"
 version = "0.1.0"
-description = "Add your description here"
+description = "Acies vehicle classifilers built with state-of-the-art models."
 authors = [
-    { name = "Jinyang Li", email = "jinyang7@illinois.edu" }
+    { name = "Jinyang Li", email = "jinyang7@illinois.edu" },
+    { name = "Denizhan Kara", email = "kara4@illinois.edu" },
+    { name = "Tianshi Wang", email = "tianshi34@illinois.edu" },
+    { name = "Yizhuo Chen", email = "yizhuoc@illinois.edu"},
+    { name = "Tommy Kimura", email = "tkimura4@illinois.edu" },
 ]
 dependencies = [
     "numpy>=1.24.4",
@@ -40,7 +44,11 @@ dev-dependencies = [
 allow-direct-references = true
 
 [project.scripts]
-acies-detector = "acies.vehicle_classifier.detector:main"
+acies-base-classifier = "acies.vehicle_classifier.base:main"
+acies-simple-classifier = "acies.vehicle_classifier.simple:main"
+acies-deepsense-classifier = "acies.vehicle_classifier.deepsense:main"
+acies-neusymbolic-classifier = "acies.vehicle_classifier.neusymbolic:main"
+acies-fondationsense-classifier = "acies.vehicle_classifier.foundationsense:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/acies"]
