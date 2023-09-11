@@ -10,6 +10,7 @@ import numpy as np
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
+from acies.vehicle_classifier.utils import get_array
 
 
 class Detector(Node):
@@ -45,17 +46,6 @@ class Detector(Node):
 
         return dummy_model
 
-    @staticmethod
-    def get_array(data: Dict) -> Tuple[str, List]:
-        if "sh3" in data:
-            return "sei", data["sh3"]
-        elif "eh3" in data:
-            return "sei", data["eh3"]
-        elif "samples" in data:
-            return "aco", data["samples"]
-        else:
-            raise KeyError(f"{data} should contain key: `sh3` or `eh3` or `samples`")
-
     def inference(self):
         # buffer incoming messages
         for k, q in self.queue.items():
@@ -63,7 +53,7 @@ class Detector(Node):
                 logger.debug(f"enqueue: {k}")
                 data = q.get(False)
                 data = json.loads(data)
-                mod, data = self.get_array(data)
+                mod, data = get_array(data)
                 self.buffs[mod].append(data)
 
         # check if we have enough data to run inference
