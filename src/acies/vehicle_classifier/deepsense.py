@@ -1,16 +1,21 @@
 import asyncio
 import json
 from collections import deque
+from typing import Dict
+from typing import List
 
 import click
 import numpy as np
+from acies.deepsense_augmented.inference import Inference
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
-from acies.vehicle_classifier.utils import get_array
+from acies.vehicle_classifier.utils import classification_msg
+from acies.vehicle_classifier.utils import get_time_range
+from acies.vehicle_classifier.utils import normalize_key
 
 
-class DeepSenseClassifier(Node):
+class SimpleClassifier(Node):
     def __init__(self, weight, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
@@ -28,18 +33,15 @@ class DeepSenseClassifier(Node):
         self.input_len = 3
 
         # the topic we publish inference results to
-        self.pub_topic = f"{self.get_hostname()}/classifier"
+        self.pub_topic = f"{self.get_hostname()}/vehicle"
 
     def load_model(self, path_to_weight: str):
         """Load model from give path."""
 
-        logger.info(f"load model from {path_to_weight}, but this is a dummy model")
+        logger.info(f"{Inference}: load model from {path_to_weight}")
 
-        def dummy_model(*args, **kwargs):
-            return [
-                {"label": "AT-AT", "conf": 1.0},
-                {"label": "Landspeeder", "conf": 0.0},
-            ]
+        # load weight and initialize your model
+        raise NotImplementedError
 
         return dummy_model
 
@@ -50,7 +52,7 @@ class DeepSenseClassifier(Node):
                 logger.debug(f"enqueue: {k}")
                 data = q.get(False)
                 data = json.loads(data)
-                mod, data = get_array(data)
+                mod, data = normalize_key(data)
                 self.buffs[mod].append(data)
 
         # check if we have enough data to run inference
@@ -58,12 +60,18 @@ class DeepSenseClassifier(Node):
             len(self.buffs["sei"]) >= self.input_len
             and len(self.buffs["aco"]) >= self.input_len
         ):
-            input_sei = [self.buffs["sei"].popleft() for _ in range(self.input_len)]
-            input_aco = [self.buffs["aco"].popleft() for _ in range(self.input_len)]
+            input_sei: List[Dict] = [
+                self.buffs["sei"].popleft() for _ in range(self.input_len)
+            ]
+            input_aco: List[Dict] = [
+                self.buffs["aco"].popleft() for _ in range(self.input_len)
+            ]
+
+            start_time, end_time = get_time_range(input_sei)
 
             # flatten
-            input_sei = np.array(input_sei).flatten()
-            input_aco = np.array(input_aco).flatten()
+            input_sei = np.array([x["samples"] for x in input_sei]).flatten()
+            input_aco = np.array([x["samples"] for x in input_aco]).flatten()
             assert len(input_sei) == 200 * self.input_len, f"input_sei={len(input_sei)}"
             assert (
                 len(input_aco) == 16000 * self.input_len
@@ -76,8 +84,10 @@ class DeepSenseClassifier(Node):
             assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
 
             result = self.model(input_sei, input_aco)
-            logger.info(f"{self.pub_topic}: {result}")
-            self.publish(self.pub_topic, json.dumps(result))
+
+            msg = classification_msg(start_time, end_time, result)
+            logger.info(f"{self.pub_topic}: {msg}")
+            self.publish(self.pub_topic, json.dumps(msg))
 
     async def run(self):
         try:
@@ -103,7 +113,7 @@ class DeepSenseClassifier(Node):
     type=str,
 )
 def main(mode, connect, listen, key, weight):
-    classifier = DeepSenseClassifier(
+    classifier = SimpleClassifier(
         mode=mode,
         connect=connect,
         listen=listen,
