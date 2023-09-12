@@ -6,6 +6,7 @@ Acoustic- and seismic-based vehicle classifiers.
 
 ```shell
 $ git clone git@github.com:acies-os/acies-vehicle-classifier.git
+$ cd acies-vehicle-classifier
 $ rye sync
 ```
 
