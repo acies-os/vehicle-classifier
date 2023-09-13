@@ -38,5 +38,5 @@ class TimeProfiler:
         self.elapsed_time_ns = perf_counter_ns() - self._start
 
 
-def update_sys_argv(model_args: List):
-    sys.argv = [sys.argv[0]] + model_args
+def update_sys_argv(model_args: Tuple):
+    sys.argv = [sys.argv[0]] + list(model_args)
