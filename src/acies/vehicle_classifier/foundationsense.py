@@ -132,12 +132,7 @@ class FoundationSenseClassifier(Node):
     help="Model weight",
     type=str,
 )
-@click.argument(
-    "model_args",
-    nargs=-1,
-    type=click.UNPROCESSED,
-    help="command line args that will be passed to the neural network model.",
-)
+@click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, key, weight, model_args):
 
     # let the node swallows the args that it needs,
