@@ -32,7 +32,7 @@ class SimpleClassifier(Node):
         # each message contains 1s of data:
         #     seismic  :    200 samples
         #     acoustic : 16_000 samples
-        self.input_len = 3
+        self.input_len = 2
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
@@ -82,7 +82,7 @@ class SimpleClassifier(Node):
             input_sei = input_sei[::2]
             input_aco = input_aco[::2]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 800 * self.input_len, f"input_aco={len(input_aco)}"
+            assert len(input_aco) == 8000 * self.input_len, f"input_aco={len(input_aco)}"
             
             input_sei = torch.from_numpy(input_sei).float()
             input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
