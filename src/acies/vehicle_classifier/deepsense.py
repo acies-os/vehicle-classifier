@@ -17,6 +17,7 @@ from acies.vehicle_classifier.utils import TimeProfiler
 from acies.vehicle_classifier.utils import classification_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
+from acies.vehicle_classifier.utils import update_sys_argv
 
 
 class SimpleClassifier(Node):
@@ -118,7 +119,7 @@ class SimpleClassifier(Node):
             self.close()
 
 
-@click.command()
+@click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
 @click.option(
     "-w",
@@ -132,7 +133,14 @@ class SimpleClassifier(Node):
     type=str,
 )
 @click.option("--device", help="Device id", default=-1, type=int)
-def main(mode, connect, listen, key, weight, config, device):
+@click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
+def main(mode, connect, listen, key, weight, config, device, model_args):
+
+    # let the node swallows the args that it needs,
+    # and passes the rest to the neural network model
+    update_sys_argv(model_args)
+
+    # initialize the class
     classifier = SimpleClassifier(
         mode=mode,
         connect=connect,

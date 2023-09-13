@@ -13,6 +13,7 @@ from acies.vehicle_classifier.utils import TimeProfiler
 from acies.vehicle_classifier.utils import classification_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
+from acies.vehicle_classifier.utils import update_sys_argv
 
 
 class Detector(Node):
@@ -109,7 +110,7 @@ class Detector(Node):
             self.close()
 
 
-@click.command()
+@click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
 @click.option(
     "-w",
@@ -117,7 +118,19 @@ class Detector(Node):
     help="Model weight",
     type=str,
 )
-def main(mode, connect, listen, key, weight):
+@click.argument(
+    "model_args",
+    nargs=-1,
+    type=click.UNPROCESSED,
+    help="command line args that will be passed to the neural network model.",
+)
+def main(mode, connect, listen, key, weight, model_args):
+
+    # let the node swallows the args that it needs,
+    # and passes the rest to the neural network model
+    update_sys_argv(model_args)
+
+    # initialize the class
     detector = Detector(
         mode=mode,
         connect=connect,
@@ -126,4 +139,6 @@ def main(mode, connect, listen, key, weight):
         pub_keys=[],
         weight=weight,
     )
+
+    # start
     asyncio.run(detector.run())

@@ -1,3 +1,4 @@
+import sys
 from time import perf_counter_ns
 from typing import Dict
 from typing import List
@@ -35,3 +36,7 @@ class TimeProfiler:
 
     def __exit__(self, type, value, traceback):
         self.elapsed_time_ns = perf_counter_ns() - self._start
+
+
+def update_sys_argv(model_args: List):
+    sys.argv = [sys.argv[0]] + model_args
