@@ -6,6 +6,8 @@ from typing import List
 
 import click
 import numpy as np
+import torch
+
 from acies.FoundationSense.inference import ModelForInference
 from acies.node import Node
 from acies.node import common_options
@@ -41,9 +43,8 @@ class SimpleClassifier(Node):
         logger.info(f"{ModelForInference} load model from {path_to_weight}")
 
         # load weight and initialize your model
-        raise NotImplementedError
-
-        return dummy_model
+        model = ModelForInference(path_to_weight)
+        return model
 
     def inference(self):
         # buffer incoming messages
@@ -79,11 +80,23 @@ class SimpleClassifier(Node):
 
             # down sampling
             input_sei = input_sei[::2]
-            input_aco = input_aco[::160]
+            input_aco = input_aco[::2]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
+            assert len(input_aco) == 800 * self.input_len, f"input_aco={len(input_aco)}"
+            
+            input_sei = torch.from_numpy(input_sei).float()
+            input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
+            input_aco = torch.from_numpy(input_aco).float()
+            input_aco = torch.reshape(input_aco, (1, 1, 10, 1600))
 
-            result = self.model(input_sei, input_aco)
+            data = {
+                "shake": {
+                    "audio": input_aco,
+                    "seismic": input_sei,
+                }
+            }
+
+            result = self.model(data)
 
             msg = classification_msg(start_time, end_time, result)
             logger.info(f"{self.pub_topic}: {msg}")
