@@ -26,7 +26,6 @@ class SimpleClassifier(Node):
         super().__init__(*args, **kwargs)
 
         # your inference model
-        # self.model = self.load_model(weight)
         device = select_device(str(device))
         config = load_yaml(config)
         self.model = Inference(weight, config, device)
@@ -43,15 +42,6 @@ class SimpleClassifier(Node):
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
 
-    def load_model(self, path_to_weight: str):
-        """Load model from give path."""
-
-        logger.info(f"{Inference}: load model from {path_to_weight}")
-
-        # load weight and initialize your model
-        raise NotImplementedError
-
-        return dummy_model
 
     def inference(self):
         # buffer incoming messages
@@ -89,7 +79,7 @@ class SimpleClassifier(Node):
             input_sei = input_sei[::2]
             input_aco = input_aco[::2]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 800 * self.input_len, f"input_aco={len(input_aco)}"
+            assert len(input_aco) == 8000 * self.input_len, f"input_aco={len(input_aco)}"
             
             input_sei = torch.from_numpy(input_sei).float()
             input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
@@ -102,7 +92,9 @@ class SimpleClassifier(Node):
                     "seismic": input_sei,
                 }
             }
-            result = self.model(data).tolist()[0]
+            result = []
+            for n, logit in enumerate(self.model(data).tolist()[0]):
+                result.append({"label": str(n), "conf": logit})
 
             msg = classification_msg(start_time, end_time, result)
             logger.info(f"{self.pub_topic}: {msg}")
