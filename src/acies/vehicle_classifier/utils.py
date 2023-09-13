@@ -1,3 +1,4 @@
+from time import perf_counter_ns
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -25,3 +26,12 @@ def get_time_range(data: List[Dict]) -> Tuple[int, int]:
 def classification_msg(start: int, end: int, result: List[Dict]) -> Dict:
     msg = {"start": start, "end": end, "result": result}
     return msg
+
+
+class TimeProfiler:
+    def __enter__(self):
+        self._start = perf_counter_ns()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.elapsed_time_ns = perf_counter_ns() - self._start

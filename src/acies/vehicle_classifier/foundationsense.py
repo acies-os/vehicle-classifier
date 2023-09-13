@@ -7,17 +7,17 @@ from typing import List
 import click
 import numpy as np
 import torch
-
 from acies.FoundationSense.inference import ModelForInference
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
+from acies.vehicle_classifier.utils import TimeProfiler
 from acies.vehicle_classifier.utils import classification_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 
 
-class SimpleClassifier(Node):
+class FoundationSenseClassifier(Node):
     def __init__(self, weight, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
@@ -82,8 +82,10 @@ class SimpleClassifier(Node):
             input_sei = input_sei[::2]
             input_aco = input_aco[::2]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 8000 * self.input_len, f"input_aco={len(input_aco)}"
-            
+            assert (
+                len(input_aco) == 8000 * self.input_len
+            ), f"input_aco={len(input_aco)}"
+
             input_sei = torch.from_numpy(input_sei).float()
             input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
             input_aco = torch.from_numpy(input_aco).float()
@@ -96,7 +98,9 @@ class SimpleClassifier(Node):
                 }
             }
 
-            result = self.model(data)
+            with TimeProfiler() as timer:
+                result = self.model(data)
+            logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, result)
             logger.info(f"{self.pub_topic}: {msg}")
@@ -126,7 +130,7 @@ class SimpleClassifier(Node):
     type=str,
 )
 def main(mode, connect, listen, key, weight):
-    classifier = SimpleClassifier(
+    classifier = FoundationSenseClassifier(
         mode=mode,
         connect=connect,
         listen=listen,
