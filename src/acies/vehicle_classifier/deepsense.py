@@ -9,7 +9,7 @@ import click
 import torch
 import numpy as np
 from acies.deepsense_augmented.inference import Inference
-from acies.deepsense_augmented.params.params_util import *
+from acies.deepsense_augmented.params.params_util import select_device
 from acies.deepsense_augmented.input_utils.yaml_utils import load_yaml
 
 from acies.node import Node
@@ -21,24 +21,15 @@ from acies.vehicle_classifier.utils import normalize_key
 
 
 class SimpleClassifier(Node):
-    def __init__(self, weight, *args, **kwargs):
+    def __init__(self, weight, config, device, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
         # your inference model
         # self.model = self.load_model(weight)
-        parser = argparse.ArgumentParser()
-        args = parser.parse_args()
-
-        args.model_weight = "/home/iobt/tianshi/acies-vehicle-classifier/models/best.pt"
-        args.config = "/home/iobt/tianshi/acies-vehicle-classifier/models/test.yaml"
-        args.multi_class = False
-        args.device = select_device("-1")
-        args.dataset_config = load_yaml(args.config)
-        args.weight_folder = args.model_weight
-        args.classifier_weight = args.model_weight
-
-        self.model = Inference(args)
+        device = select_device(str(device))
+        config = load_yaml(config)
+        self.model = Inference(weight, config, device)
 
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
@@ -140,7 +131,18 @@ class SimpleClassifier(Node):
     help="Model weight",
     type=str,
 )
-def main(mode, connect, listen, key, weight, *args):
+@click.option(
+    "--config",
+    help="Model config",
+    type=str,
+)
+@click.option(
+    "--device",
+    help="Device id",
+    default=-1,
+    type=int
+)
+def main(mode, connect, listen, key, weight, config, device):
     classifier = SimpleClassifier(
         mode=mode,
         connect=connect,
@@ -148,6 +150,7 @@ def main(mode, connect, listen, key, weight, *args):
         sub_keys=key,
         pub_keys=[],
         weight=weight,
-        *args,
+        config=config,
+        device=device,
     )
     asyncio.run(classifier.run())
