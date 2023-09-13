@@ -3,18 +3,17 @@ import json
 from collections import deque
 from typing import Dict
 from typing import List
-import argparse
 
 import click
-import torch
 import numpy as np
+import torch
 from acies.deepsense_augmented.inference import Inference
-from acies.deepsense_augmented.params.params_util import select_device
 from acies.deepsense_augmented.input_utils.yaml_utils import load_yaml
-
+from acies.deepsense_augmented.params.params_util import select_device
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
+from acies.vehicle_classifier.utils import TimeProfiler
 from acies.vehicle_classifier.utils import classification_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
@@ -41,7 +40,6 @@ class SimpleClassifier(Node):
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
-
 
     def inference(self):
         # buffer incoming messages
@@ -79,8 +77,10 @@ class SimpleClassifier(Node):
             input_sei = input_sei[::2]
             input_aco = input_aco[::2]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 8000 * self.input_len, f"input_aco={len(input_aco)}"
-            
+            assert (
+                len(input_aco) == 8000 * self.input_len
+            ), f"input_aco={len(input_aco)}"
+
             input_sei = torch.from_numpy(input_sei).float()
             input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
             input_aco = torch.from_numpy(input_aco).float()
@@ -93,8 +93,11 @@ class SimpleClassifier(Node):
                 }
             }
             result = []
-            for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                result.append({"label": str(n), "conf": logit})
+
+            with TimeProfiler() as timer:
+                for n, logit in enumerate(self.model.infer(data).tolist()[0]):
+                    result.append({"label": str(n), "conf": logit})
+            logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, result)
             logger.info(f"{self.pub_topic}: {msg}")
@@ -128,12 +131,7 @@ class SimpleClassifier(Node):
     help="Model config",
     type=str,
 )
-@click.option(
-    "--device",
-    help="Device id",
-    default=-1,
-    type=int
-)
+@click.option("--device", help="Device id", default=-1, type=int)
 def main(mode, connect, listen, key, weight, config, device):
     classifier = SimpleClassifier(
         mode=mode,
