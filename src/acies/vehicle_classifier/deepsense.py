@@ -3,10 +3,15 @@ import json
 from collections import deque
 from typing import Dict
 from typing import List
+import argparse
 
 import click
+import torch
 import numpy as np
 from acies.deepsense_augmented.inference import Inference
+from acies.deepsense_augmented.params.params_util import *
+from acies.deepsense_augmented.input_utils.yaml_utils import load_yaml
+
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
@@ -21,7 +26,19 @@ class SimpleClassifier(Node):
         super().__init__(*args, **kwargs)
 
         # your inference model
-        self.model = self.load_model(weight)
+        # self.model = self.load_model(weight)
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+
+        args.model_weight = "/home/iobt/tianshi/acies-vehicle-classifier/models/best.pt"
+        args.config = "/home/iobt/tianshi/acies-vehicle-classifier/models/test.yaml"
+        args.multi_class = False
+        args.device = select_device("-1")
+        args.dataset_config = load_yaml(args.config)
+        args.weight_folder = args.model_weight
+        args.classifier_weight = args.model_weight
+
+        self.model = Inference(args)
 
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
@@ -30,7 +47,7 @@ class SimpleClassifier(Node):
         # each message contains 1s of data:
         #     seismic  :    200 samples
         #     acoustic : 16_000 samples
-        self.input_len = 3
+        self.input_len = 2
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
@@ -79,11 +96,22 @@ class SimpleClassifier(Node):
 
             # down sampling
             input_sei = input_sei[::2]
-            input_aco = input_aco[::160]
+            input_aco = input_aco[::2]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
+            assert len(input_aco) == 800 * self.input_len, f"input_aco={len(input_aco)}"
+            
+            input_sei = torch.from_numpy(input_sei).float()
+            input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
+            input_aco = torch.from_numpy(input_aco).float()
+            input_aco = torch.reshape(input_aco, (1, 1, 10, 1600))
 
-            result = self.model(input_sei, input_aco)
+            data = {
+                "shake": {
+                    "audio": input_aco,
+                    "seismic": input_sei,
+                }
+            }
+            result = self.model(data).tolist()[0]
 
             msg = classification_msg(start_time, end_time, result)
             logger.info(f"{self.pub_topic}: {msg}")
@@ -112,7 +140,7 @@ class SimpleClassifier(Node):
     help="Model weight",
     type=str,
 )
-def main(mode, connect, listen, key, weight):
+def main(mode, connect, listen, key, weight, *args):
     classifier = SimpleClassifier(
         mode=mode,
         connect=connect,
@@ -120,5 +148,6 @@ def main(mode, connect, listen, key, weight):
         sub_keys=key,
         pub_keys=[],
         weight=weight,
+        *args,
     )
     asyncio.run(classifier.run())
