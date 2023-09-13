@@ -93,7 +93,7 @@ class SimpleClassifier(Node):
                 }
             }
             result = []
-            for n, logit in enumerate(self.model(data).tolist()[0]):
+            for n, logit in enumerate(self.model.infer(data).tolist()[0]):
                 result.append({"label": str(n), "conf": logit})
 
             msg = classification_msg(start_time, end_time, result)
