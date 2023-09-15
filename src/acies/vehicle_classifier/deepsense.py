@@ -93,11 +93,11 @@ class SimpleClassifier(Node):
                     "seismic": input_sei,
                 }
             }
-            result = []
+            result = {}
 
             with TimeProfiler() as timer:
                 for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                    result.append({"label": str(n), "conf": logit})
+                    result[str(n)] = logit
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, result)
