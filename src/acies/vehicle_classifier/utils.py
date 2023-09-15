@@ -24,7 +24,7 @@ def get_time_range(data: List[Dict]) -> Tuple[int, int]:
     return start, end
 
 
-def classification_msg(start: int, end: int, result: List[Dict]) -> Dict:
+def classification_msg(start: int, end: int, result: Dict[str, float]) -> Dict:
     msg = {"start": start, "end": end, "result": result}
     return msg
 

@@ -101,11 +101,14 @@ class FoundationSenseClassifier(Node):
 
             with TimeProfiler() as timer:
                 result = self.model(data)
-                class_names = self.model.args.dataset_config["vehicle_classification"]["class_names"]
-                # TODO (Tommy): add label to the resulting scores
-                result = [
-                    {"label": class_names[i], "conf": score} for i, score in enumerate(result[0].tolist())
+                class_names = self.model.args.dataset_config["vehicle_classification"][
+                    "class_names"
                 ]
+                # TODO (Tommy): add label to the resulting scores
+                result = {
+                    class_names[i]: score for i, score in enumerate(result[0].tolist())
+                }
+
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, result)
