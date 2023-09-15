@@ -18,6 +18,7 @@ from acies.vehicle_detection_baselines.inference.inference_logic import Inferenc
 import xgboost as xgb
 import pickle
 
+
 class SimpleClassifier(Node):
     def __init__(self, weight, *args, **kwargs):
         # pass other args to parent type
@@ -33,12 +34,10 @@ class SimpleClassifier(Node):
         # each message contains 1s of data:
         #     seismic  :    200 samples
         #     acoustic : 16_000 samples
-        self.input_len = 1 # intra window for now
+        self.input_len = 1  # intra window for now
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
-
-    
 
     def inference(self):
         # buffer incoming messages
@@ -74,17 +73,19 @@ class SimpleClassifier(Node):
 
             # down sampling
             input_sei = input_sei[::2]
-            input_aco = input_aco[::16] 
+            input_aco = input_aco[::16]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 1000 * self.input_len, f"input_aco={len(input_aco)}"
-            
-            data = {    
-                    "x_aud": input_aco,
-                    "x_sei": input_sei,
-                }
-            
+            assert (
+                len(input_aco) == 1000 * self.input_len
+            ), f"input_aco={len(input_aco)}"
+
+            data = {
+                "x_aud": input_aco,
+                "x_sei": input_sei,
+            }
+
             with TimeProfiler() as timer:
-                result = self.model.infer(data)
+                result = self.model.predict(data)
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, result)
