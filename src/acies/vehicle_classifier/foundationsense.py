@@ -46,6 +46,27 @@ class FoundationSenseClassifier(Node):
         # load weight and initialize your model
         model = ModelForInference(path_to_weight)
         return model
+    
+    def compute_husky_score(self, predictions):
+        no_car_cf = predictions[-1]
+
+        no_car_threshold = 0.70
+        vehicle_threshold = 0.60
+
+        husky_cf = 0.0000
+
+        if no_car_cf < no_car_threshold:
+            # there is a car
+            vehicle_predictions = predictions[:-1]
+
+            # get a list of detected car with confidence score above the threshold
+            classified_vehicles = [vec for vec in vehicle_predictions if vec >= vehicle_threshold]
+
+            if len(classified_vehicles) == 0:
+                # its likely that husky is there
+                husky_cf = 1 - np.mean(vehicle_predictions)
+        
+        return husky_cf
 
     def inference(self):
         # buffer incoming messages
@@ -100,12 +121,18 @@ class FoundationSenseClassifier(Node):
             }
 
             with TimeProfiler() as timer:
-                result = self.model(data)
+                logits = self.model(data)[0]
+                predictions = logits.tolist()
                 class_names = self.model.args.dataset_config["vehicle_classification"]["class_names"]
-                # TODO (Tommy): add label to the resulting scores
-                result = [
-                    {"label": class_names[i], "conf": score} for i, score in enumerate(result[0].tolist())
-                ]
+
+                
+                husky_cf = self.compute_husky_score(predictions)
+                result = [{"label": class_names[i], "conf": round(score, 6)} for i, score in enumerate(predictions)]
+                result.append({
+                    "label": "Husky",
+                    "conf": husky_cf
+                })
+
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, result)
