@@ -15,8 +15,6 @@ from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
 from acies.vehicle_detection_baselines.inference.inference_logic import Inference
-import xgboost as xgb
-import pickle
 
 
 class SimpleClassifier(Node):
@@ -88,7 +86,7 @@ class SimpleClassifier(Node):
                 result = self.model.predict(data)
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, result)
+            msg = classification_msg(start_time, end_time, "simple", result)
             logger.info(f"{self.pub_topic}: {msg}")
             self.publish(self.pub_topic, json.dumps(msg))
 
@@ -117,7 +115,6 @@ class SimpleClassifier(Node):
 )
 @click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, key, weight, model_args):
-
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)

@@ -89,7 +89,7 @@ class NeuSymbolicClassifier(Node):
                 result = self.model(input_aco)
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, result)
+            msg = classification_msg(start_time, end_time, "neusym", result)
             logger.info(f"{self.pub_topic}: {msg}")
             self.publish(self.pub_topic, json.dumps(msg))
 
@@ -118,7 +118,6 @@ class NeuSymbolicClassifier(Node):
 )
 @click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, key, weight, model_args):
-
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
