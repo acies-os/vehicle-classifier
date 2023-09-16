@@ -23,7 +23,7 @@ class SimpleClassifier(Node):
         super().__init__(*args, **kwargs)
 
         # your inference model
-        self.model = self.load_model(weight)
+        self.model = Inference(weight)
 
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
@@ -32,20 +32,10 @@ class SimpleClassifier(Node):
         # each message contains 1s of data:
         #     seismic  :    200 samples
         #     acoustic : 16_000 samples
-        self.input_len = 3
+        self.input_len = 1  # intra window for now
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
-
-    def load_model(self, path_to_weight: str):
-        """Load model from give path."""
-
-        logger.info(f"{Inference}: load model from {path_to_weight}")
-
-        # load weight and initialize your model
-        raise NotImplementedError
-
-        return dummy_model
 
     def inference(self):
         # buffer incoming messages
@@ -81,15 +71,22 @@ class SimpleClassifier(Node):
 
             # down sampling
             input_sei = input_sei[::2]
-            input_aco = input_aco[::160]
+            input_aco = input_aco[::16]
             assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
+            assert (
+                len(input_aco) == 1000 * self.input_len
+            ), f"input_aco={len(input_aco)}"
+
+            data = {
+                "x_aud": input_aco,
+                "x_sei": input_sei,
+            }
 
             with TimeProfiler() as timer:
-                result = self.model(input_sei, input_aco)
+                result = self.model.predict(data)
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, result)
+            msg = classification_msg(start_time, end_time, "simple", result)
             logger.info(f"{self.pub_topic}: {msg}")
             self.publish(self.pub_topic, json.dumps(msg))
 
@@ -118,7 +115,6 @@ class SimpleClassifier(Node):
 )
 @click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, key, weight, model_args):
-
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
