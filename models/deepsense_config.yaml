@@ -1,12 +1,13 @@
 # data paths  
-base_path: /home/sl29/data_backup/tianshi_backup/VehicleDetection/data_partition/test_data_partition # dataset root dir
+base_path: /home/tianshi/iobt_demo2023/dataset/ # dataset root dir
 train_index_file: train_index.txt  
-val_index_file: val_index.txt 
+val_index_file: valid_index.txt 
 test_index_file: test_index.txt
 
 # Classes
-num_classes: 2  # number of classes
-class_names: ["no-vehicle", "vehicle"] # Change multi_modal_dataset.py to change the class names
+num_classes: 4  # number of classes
+# class_names: ["No-vehicle", "Polaris", "Warhog", "Silverado", "Husky"] # Change multi_modal_dataset.py to change the class names
+class_names: ["No-vehicle", "Polaris", "Warhog", "Silverado"] # Change multi_modal_dataset.py to change the class names
 
 num_sensors: 1
 
@@ -61,5 +62,5 @@ DeepSense:
         train_epochs: 100
         scheduler_step: 200
         scheduler_gamma: 0.2
-        start_lr: 0.00001
+        start_lr: 0.0001
 

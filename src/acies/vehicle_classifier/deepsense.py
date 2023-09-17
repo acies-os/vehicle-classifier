@@ -19,6 +19,7 @@ from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
 
+VEHICLE_TYPES = ["No-vehicle", "Polaris", "Warhog", "Silverado", "Husky"]
 
 class SimpleClassifier(Node):
     def __init__(self, weight, config, device, *args, **kwargs):
@@ -41,6 +42,16 @@ class SimpleClassifier(Node):
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
+
+    def segment_signal(self, signal, window_length, overlap_length):
+        segments = []
+        start = 0
+        while start <= len(signal) - window_length:
+            end = start + window_length
+            segments.append(signal[start:end])
+            start = start + window_length - overlap_length
+        segments = torch.stack(segments, dim=0)
+        return segments
 
     def inference(self):
         # buffer incoming messages
@@ -82,22 +93,31 @@ class SimpleClassifier(Node):
                 len(input_aco) == 8000 * self.input_len
             ), f"input_aco={len(input_aco)}"
 
-            input_sei = torch.from_numpy(input_sei).float()
-            input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
+            input_sei = torch.from_numpy(input_sei).float() 
+            input_sei = torch.unsqueeze(input_sei, -1) # [200, 1]
+            input_sei = self.segment_signal(input_sei, 20, 0) # [10, 20, 1]
+            input_sei = torch.permute(torch.abs(torch.fft.fft(input_sei)), [2, 0, 1]) # [1, 10, 20]
+            input_sei = torch.unsqueeze(input_sei, 0) # [1, 1, 10, 20]
+        
             input_aco = torch.from_numpy(input_aco).float()
-            input_aco = torch.reshape(input_aco, (1, 1, 10, 1600))
-
+            input_aco = torch.unsqueeze(input_aco, -1) # [16000, 1]
+            input_aco = self.segment_signal(input_aco, 20, 0) # [10, 1600, 1]
+            input_aco = torch.permute(torch.abs(torch.fft.fft(input_aco)), [2, 0, 1]) # [1, 10, 1600]
+            input_aco = torch.unsqueeze(input_aco, 0) # [1, 1, 10, 1600]
+            
             data = {
                 "shake": {
                     "audio": input_aco,
                     "seismic": input_sei,
                 }
             }
+
             result = []
 
             with TimeProfiler() as timer:
                 for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                    result.append({"label": str(n), "conf": logit})
+                    # result.append({"label": str(n), "conf": logit})
+                    result.append({"label": VEHICLE_TYPES[n], "conf": logit})
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, result)
