@@ -48,7 +48,7 @@ acies-base-classifier = "acies.vehicle_classifier.base:main"
 acies-simple-classifier = "acies.vehicle_classifier.simple:main"
 acies-deepsense-classifier = "acies.vehicle_classifier.deepsense:main"
 acies-neusymbolic-classifier = "acies.vehicle_classifier.neusymbolic:main"
-acies-fondationsense-classifier = "acies.vehicle_classifier.foundationsense:main"
+acies-foundationsense-classifier = "acies.vehicle_classifier.foundationsense:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/acies"]

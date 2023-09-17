@@ -112,15 +112,14 @@ class SimpleClassifier(Node):
                 }
             }
 
-            result = []
+            result = {}
 
             with TimeProfiler() as timer:
                 for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                    # result.append({"label": str(n), "conf": logit})
-                    result.append({"label": VEHICLE_TYPES[n], "conf": logit})
+                    result[str(n)] = logit
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, result)
+            msg = classification_msg(start_time, end_time, "dsense", result)
             logger.info(f"{self.pub_topic}: {msg}")
             self.publish(self.pub_topic, json.dumps(msg))
 
@@ -155,7 +154,6 @@ class SimpleClassifier(Node):
 @click.option("--device", help="Device id", default=-1, type=int)
 @click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, key, weight, config, device, model_args):
-
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)

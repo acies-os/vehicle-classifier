@@ -15,7 +15,6 @@ from acies.vehicle_classifier.utils import classification_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
-from acies.vehicle_detection_baselines.inference.inference_logic import Inference
 
 
 class NeuSymbolicClassifier(Node):
@@ -33,7 +32,7 @@ class NeuSymbolicClassifier(Node):
         # each message contains 1s of data:
         #     seismic  :    200 samples
         #     acoustic : 16_000 samples
-        self.input_len = 3
+        self.input_len = 1
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
@@ -43,10 +42,9 @@ class NeuSymbolicClassifier(Node):
 
         logger.info(f"{InferModel} load model from {path_to_weight}")
 
-        # load weight and initialize your model
-        raise NotImplementedError
+        model = InferModel(path_to_weight)
 
-        return dummy_model
+        return model
 
     def inference(self):
         # buffer incoming messages
@@ -80,17 +78,17 @@ class NeuSymbolicClassifier(Node):
                 len(input_aco) == 16000 * self.input_len
             ), f"input_aco={len(input_aco)}"
 
-            # down sampling
-            input_sei = input_sei[::2]
-            input_aco = input_aco[::160]
-            assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
-            assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
+            # # down sampling
+            # input_sei = input_sei[::2]
+            # input_aco = input_aco[::160]
+            # assert len(input_sei) == 100 * self.input_len, f"input_sei={len(input_sei)}"
+            # assert len(input_aco) == 100 * self.input_len, f"input_aco={len(input_aco)}"
 
             with TimeProfiler() as timer:
-                result = self.model(input_sei, input_aco)
+                result = self.model(input_aco)
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, result)
+            msg = classification_msg(start_time, end_time, "neusym", result)
             logger.info(f"{self.pub_topic}: {msg}")
             self.publish(self.pub_topic, json.dumps(msg))
 
@@ -119,7 +117,6 @@ class NeuSymbolicClassifier(Node):
 )
 @click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, key, weight, model_args):
-
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
