@@ -127,11 +127,9 @@ class FoundationSenseClassifier(Node):
 
                 
                 husky_cf = self.compute_husky_score(predictions)
-                result = [{"label": class_names[i], "conf": round(score, 6)} for i, score in enumerate(predictions)]
-                result.append({
-                    "label": "Husky",
-                    "conf": husky_cf
-                })
+                result = {class_names[i].lower(): round(score, 6) for i, score in enumerate(predictions[:-1])}
+                result["husky"] = husky_cf
+
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
