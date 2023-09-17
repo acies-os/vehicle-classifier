@@ -14,6 +14,7 @@ from acies.vehicle_classifier.utils import classification_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
+from acies.vehicle_classifier.utils import DistInference
 from acies.vehicle_detection_baselines.inference.inference_logic import Inference
 
 
@@ -36,6 +37,9 @@ class SimpleClassifier(Node):
 
         # the topic we publish inference results to
         self.pub_topic = f"{self.get_hostname()}/vehicle"
+        
+        # distance classifier
+        self.distance_classifier = DistInference()
 
     def inference(self):
         # buffer incoming messages
