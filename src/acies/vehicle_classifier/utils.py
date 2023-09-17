@@ -9,16 +9,13 @@ import pandas as pd
 
 
 def normalize_key(data: Dict) -> Tuple[str, Dict]:
-    if "sh3" in data:
-        data["samples"] = data.pop("sh3")
+    assert "samples" in data
+    if "channel" in data:
         return "sei", data
-    elif "eh3" in data:
-        data["samples"] = data.pop("eh3")
-        return "sei", data
-    elif "samples" in data:
+    elif "sample_rate":
         return "aco", data
     else:
-        raise KeyError(f"{data} should contain key: `sh3` or `eh3` or `samples`")
+        raise KeyError(f"{data} should contain key: `channel` or `sample_rate`")
 
 
 def get_time_range(data: List[Dict]) -> Tuple[int, int]:
