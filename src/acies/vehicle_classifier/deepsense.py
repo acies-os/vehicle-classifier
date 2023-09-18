@@ -19,7 +19,7 @@ from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
 
-VEHICLE_TYPES = ["No-vehicle", "Polaris", "Warhog", "Silverado", "Husky"]
+VEHICLE_TYPES = ["no-vehicle", "polaris", "warthog", "silverado", "husky"]
 
 class SimpleClassifier(Node):
     def __init__(self, weight, config, device, *args, **kwargs):
@@ -101,7 +101,7 @@ class SimpleClassifier(Node):
         
             input_aco = torch.from_numpy(input_aco).float()
             input_aco = torch.unsqueeze(input_aco, -1) # [16000, 1]
-            input_aco = self.segment_signal(input_aco, 20, 0) # [10, 1600, 1]
+            input_aco = self.segment_signal(input_aco, 1600, 0) # [10, 1600, 1]
             input_aco = torch.permute(torch.abs(torch.fft.fft(input_aco)), [2, 0, 1]) # [1, 10, 1600]
             input_aco = torch.unsqueeze(input_aco, 0) # [1, 1, 10, 1600]
             
@@ -113,10 +113,10 @@ class SimpleClassifier(Node):
             }
 
             result = {}
-
             with TimeProfiler() as timer:
                 for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                    result[str(n)] = logit
+                    result[VEHICLE_TYPES[n]] = logit
+
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, "dsense", result)
