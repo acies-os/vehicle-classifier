@@ -157,7 +157,7 @@ class FoundationSenseClassifier(Node):
                     class_names[i].lower(): round(predictions[i], 6)
                     for i in range(len(predictions))
                 }
-                del(result["husky"])
+                del(result["no_vehicle"])
                 result["husky"] = 0.0
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
