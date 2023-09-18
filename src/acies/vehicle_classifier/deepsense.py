@@ -172,13 +172,8 @@ class SimpleClassifier(Node):
                     if len(self.window) < self.window_size:
                             self.window.append(np.argmax(prediction))
                     else:
-                        if random.random() < 0.5:
-                            self.window.pop(0)
-                            self.window.append(1)
-                            logger.debug(f"Should be vehicle!")
-                        else:
-                            self.window.pop(0)
-                            self.window.append(np.argmax(prediction))
+                        self.window.pop(0)
+                        self.window.append(np.argmax(prediction))
             logger.debug(f"current window: {self.window}")
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
