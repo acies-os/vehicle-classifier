@@ -68,6 +68,8 @@ class FoundationSenseClassifier(Node):
         if no_car_cf < no_car_threshold:
             # there is a car
             vehicle_predictions = predictions[1:]
+            
+            # polarius,
 
             # get a list of detected car with confidence score above the threshold
             classified_vehicles = [
@@ -152,10 +154,11 @@ class FoundationSenseClassifier(Node):
 
                 husky_cf = self.compute_husky_score(predictions)
                 result = {
-                    class_names[i].lower(): round(score, 6)
-                    for i, score in enumerate(predictions[1:])
+                    class_names[i].lower(): round(predictions[i], 6)
+                    for i in range(len(predictions[:]))
                 }
-                result["husky"] = husky_cf
+                del(result["husky"])
+                result["husky"] = 0.0
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
