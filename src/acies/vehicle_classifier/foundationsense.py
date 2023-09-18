@@ -155,7 +155,7 @@ class FoundationSenseClassifier(Node):
                 husky_cf = self.compute_husky_score(predictions)
                 result = {
                     class_names[i].lower(): round(predictions[i], 6)
-                    for i in range(len(predictions[:]))
+                    for i in range(len(predictions))
                 }
                 del(result["husky"])
                 result["husky"] = 0.0
