@@ -5,7 +5,6 @@ from typing import List
 from typing import Tuple
 
 import numpy as np
-import pandas as pd
 
 
 def normalize_key(data: Dict) -> Tuple[str, Dict]:
@@ -28,6 +27,11 @@ def classification_msg(
     start: int, end: int, model: str, result: Dict[str, float]
 ) -> Dict:
     msg = {"start": start, "end": end, "model": model, "result": result}
+    return msg
+
+
+def distance_msg(timestamp: int, model: str, distance: float) -> Dict:
+    msg = {"timestamp": timestamp, "model": model, "distance": distance}
     return msg
 
 
