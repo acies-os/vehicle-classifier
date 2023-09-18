@@ -153,10 +153,12 @@ class SimpleClassifier(Node):
                 else:
                     prediction = self.model.infer(data).tolist()[0]
                     if not all(x == 0 for x in self.window) and len(self.window) > 0: # If not all elements in self.window are 0 (no-vehicle)
+                        logger.debug("not all elements in self.window are 0")
                         result[VEHICLE_TYPES[0]] = 0.0 # Suppress no-vehicle
                         vehicle_occurances = len([x for x in self.window if x != 0])
                         for n in range(1, len(VEHICLE_TYPES)):
                             result[VEHICLE_TYPES[n]] = self.window.count(n) / vehicle_occurances
+                        logger.debug(f"after shifting window: {result}")
                         # Print independent prediction
                         independent_result = {}
                         for n, logit in enumerate(prediction):
@@ -170,13 +172,14 @@ class SimpleClassifier(Node):
                     if len(self.window) < self.window_size:
                             self.window.append(np.argmax(prediction))
                     else:
-                        if random.random() < 0.9:
+                        if random.random() < 0.5:
                             self.window.pop(0)
                             self.window.append(1)
+                            logger.debug(f"Should be vehicle!")
                         else:
                             self.window.pop(0)
                             self.window.append(np.argmax(prediction))
-
+            logger.debug(f"current window: {self.window}")
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             msg = classification_msg(start_time, end_time, self.model_name, result)
