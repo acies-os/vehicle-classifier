@@ -3,6 +3,7 @@ import json
 from collections import deque
 from typing import Dict
 from typing import List
+import random
 
 import click
 import numpy as np
@@ -31,6 +32,9 @@ class SimpleClassifier(Node):
         config = load_yaml(config)
         self.model = Inference(weight, config, device)
         self.config = config
+        self.window = []
+        self.window_size = 10
+
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
 
@@ -118,8 +122,30 @@ class SimpleClassifier(Node):
                     for n, logit in enumerate(self.model.infer(data).tolist()[0]):
                         result[VEHICLE_TYPES[n+1]] = logit
                 else:
-                    for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                        result[VEHICLE_TYPES[n]] = logit
+                    prediction = self.model.infer(data).tolist()[0]
+                    if not all(x == 0 for x in self.window) and len(self.window) > 0: # If not all elements in self.window are 0 (no-vehicle)
+                        result[VEHICLE_TYPES[0]] = 0.0 # Suppress no-vehicle
+                        vehicle_occurances = len([x for x in self.window if x != 0])
+                        for n in range(1, len(VEHICLE_TYPES)):
+                            result[VEHICLE_TYPES[n]] = self.window.count(n) / vehicle_occurances
+                        # Print independent prediction
+                        independent_result = {}
+                        for n, logit in enumerate(prediction):
+                            independent_result[VEHICLE_TYPES[n]] = logit
+                        logger.debug(f"Independent prediction: {independent_result}")
+                    else:
+                        for n, logit in enumerate(prediction):
+                            result[VEHICLE_TYPES[n]] = logit
+
+                    # Latest prediction enqueue
+                    if len(self.window) < self.window_size:
+                        if random.random() < 0.9:
+                            self.window.append(np.argmax(prediction))
+                        else:
+                            self.window.append(1)
+                    else:
+                        self.window.pop(0)
+                        self.window.append(np.argmax(prediction))
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
