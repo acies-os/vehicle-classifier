@@ -168,13 +168,14 @@ class SimpleClassifier(Node):
 
                     # Latest prediction enqueue
                     if len(self.window) < self.window_size:
-                        if random.random() < 0.9:
                             self.window.append(np.argmax(prediction))
-                        else:
-                            self.window.append(1)
                     else:
-                        self.window.pop(0)
-                        self.window.append(np.argmax(prediction))
+                        if random.random() < 0.9:
+                            self.window.pop(0)
+                            self.window.append(1)
+                        else:
+                            self.window.pop(0)
+                            self.window.append(np.argmax(prediction))
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
