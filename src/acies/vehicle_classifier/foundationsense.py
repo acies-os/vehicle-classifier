@@ -11,8 +11,10 @@ from acies.FoundationSense.inference import ModelForInference
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
+from acies.vehicle_classifier.utils import DistInference
 from acies.vehicle_classifier.utils import TimeProfiler
 from acies.vehicle_classifier.utils import classification_msg
+from acies.vehicle_classifier.utils import distance_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
@@ -36,7 +38,15 @@ class FoundationSenseClassifier(Node):
         self.input_len = 2
 
         # the topic we publish inference results to
-        self.pub_topic = f"{self.get_hostname()}/vehicle"
+        self.pub_topic_vehicle = f"{self.get_hostname()}/vehicle"
+
+        # the topic we publish target distance results to
+        self.pub_topic_distance = f"{self.get_hostname()}/distance"
+
+        # distance classifier
+        self.distance_classifier = DistInference()
+
+        self.model_name = "fsense"
 
     def load_model(self, path_to_weight: str):
         """Load model from give path."""
@@ -46,7 +56,7 @@ class FoundationSenseClassifier(Node):
         # load weight and initialize your model
         model = ModelForInference(path_to_weight)
         return model
-    
+
     def compute_husky_score(self, predictions):
         no_car_cf = predictions[0]
 
@@ -60,12 +70,14 @@ class FoundationSenseClassifier(Node):
             vehicle_predictions = predictions[1:]
 
             # get a list of detected car with confidence score above the threshold
-            classified_vehicles = [vec for vec in vehicle_predictions if vec >= vehicle_threshold]
+            classified_vehicles = [
+                vec for vec in vehicle_predictions if vec >= vehicle_threshold
+            ]
 
             if len(classified_vehicles) == 0:
                 # its likely that husky is there
                 husky_cf = 1 - np.mean(vehicle_predictions)
-        
+
         return husky_cf
 
     def inference(self):
@@ -77,6 +89,17 @@ class FoundationSenseClassifier(Node):
                 data = json.loads(data)
                 mod, data = normalize_key(data)
                 self.buffs[mod].append(data)
+
+        # publish distance info
+        if len(self.buffs["sei"]) >= 1 and len(self.buffs["aco"]) >= 1:
+            # access data without taking it out of the queue
+            input_sei = self.buffs["sei"][-1]
+            # access data without taking it out of the queue
+            input_aco = self.buffs["aco"][-1]
+            dist_input = {"x_sei": input_sei["samples"], "x_aud": input_aco["samples"]}
+            dist: int = self.distance_classifier.predict_distance(dist_input)
+            dist_msg = distance_msg(input_sei["timestamp"], self.model_name, dist)
+            self.publish(self.pub_topic_distance, json.dumps(dist_msg))
 
         # check if we have enough data to run inference
         if (
@@ -123,19 +146,22 @@ class FoundationSenseClassifier(Node):
             with TimeProfiler() as timer:
                 logits = self.model(data)[0]
                 predictions = logits.tolist()
-                class_names = self.model.args.dataset_config["vehicle_classification"]["class_names"]
+                class_names = self.model.args.dataset_config["vehicle_classification"][
+                    "class_names"
+                ]
 
-                
                 husky_cf = self.compute_husky_score(predictions)
-                result = {class_names[i].lower(): round(score, 6) for i, score in enumerate(predictions[1:])}
+                result = {
+                    class_names[i].lower(): round(score, 6)
+                    for i, score in enumerate(predictions[1:])
+                }
                 result["husky"] = husky_cf
-
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, "fsense", result)
-            logger.info(f"{self.pub_topic}: {msg}")
-            self.publish(self.pub_topic, json.dumps(msg))
+            msg = classification_msg(start_time, end_time, self.model_name, result)
+            logger.info(f"{self.pub_topic_vehicle}: {msg}")
+            self.publish(self.pub_topic_vehicle, json.dumps(msg))
 
     async def run(self):
         try:

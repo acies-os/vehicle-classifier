@@ -14,18 +14,24 @@ from acies.deepsense_augmented.params.params_util import select_device
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
+from acies.vehicle_classifier.utils import DistInference
 from acies.vehicle_classifier.utils import TimeProfiler
 from acies.vehicle_classifier.utils import classification_msg
+from acies.vehicle_classifier.utils import distance_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
 
 VEHICLE_TYPES = ["no-vehicle", "polaris", "warthog", "silverado"]
 
+
 class SimpleClassifier(Node):
     def __init__(self, weight, config, device, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
+
+        logger.info(f"DeepSense weight: {weight}")
+        logger.info(f"DeepSense config: {config}")
 
         # your inference model
         device = select_device(str(device))
@@ -45,7 +51,15 @@ class SimpleClassifier(Node):
         self.input_len = 2
 
         # the topic we publish inference results to
-        self.pub_topic = f"{self.get_hostname()}/vehicle"
+        self.pub_topic_vehicle = f"{self.get_hostname()}/vehicle"
+
+        # the topic we publish target distance results to
+        self.pub_topic_distance = f"{self.get_hostname()}/distance"
+
+        # distance classifier
+        self.distance_classifier = DistInference()
+
+        self.model_name = "dsense"
 
     def segment_signal(self, signal, window_length, overlap_length):
         segments = []
@@ -66,6 +80,17 @@ class SimpleClassifier(Node):
                 data = json.loads(data)
                 mod, data = normalize_key(data)
                 self.buffs[mod].append(data)
+
+        # publish distance info
+        if len(self.buffs["sei"]) >= 1 and len(self.buffs["aco"]) >= 1:
+            # access data without taking it out of the queue
+            input_sei = self.buffs["sei"][-1]
+            # access data without taking it out of the queue
+            input_aco = self.buffs["aco"][-1]
+            dist_input = {"x_sei": input_sei["samples"], "x_aud": input_aco["samples"]}
+            dist: int = self.distance_classifier.predict_distance(dist_input)
+            dist_msg = distance_msg(input_sei["timestamp"], self.model_name, dist)
+            self.publish(self.pub_topic_distance, json.dumps(dist_msg))
 
         # check if we have enough data to run inference
         if (
@@ -97,18 +122,22 @@ class SimpleClassifier(Node):
                 len(input_aco) == 8000 * self.input_len
             ), f"input_aco={len(input_aco)}"
 
-            input_sei = torch.from_numpy(input_sei).float() 
-            input_sei = torch.unsqueeze(input_sei, -1) # [200, 1]
-            input_sei = self.segment_signal(input_sei, 20, 0) # [10, 20, 1]
-            input_sei = torch.permute(torch.abs(torch.fft.fft(input_sei)), [2, 0, 1]) # [1, 10, 20]
-            input_sei = torch.unsqueeze(input_sei, 0) # [1, 1, 10, 20]
-        
+            input_sei = torch.from_numpy(input_sei).float()
+            input_sei = torch.unsqueeze(input_sei, -1)  # [200, 1]
+            input_sei = self.segment_signal(input_sei, 20, 0)  # [10, 20, 1]
+            input_sei = torch.permute(
+                torch.abs(torch.fft.fft(input_sei)), [2, 0, 1]
+            )  # [1, 10, 20]
+            input_sei = torch.unsqueeze(input_sei, 0)  # [1, 1, 10, 20]
+
             input_aco = torch.from_numpy(input_aco).float()
-            input_aco = torch.unsqueeze(input_aco, -1) # [16000, 1]
-            input_aco = self.segment_signal(input_aco, 1600, 0) # [10, 1600, 1]
-            input_aco = torch.permute(torch.abs(torch.fft.fft(input_aco)), [2, 0, 1]) # [1, 10, 1600]
-            input_aco = torch.unsqueeze(input_aco, 0) # [1, 1, 10, 1600]
-            
+            input_aco = torch.unsqueeze(input_aco, -1)  # [16000, 1]
+            input_aco = self.segment_signal(input_aco, 1600, 0)  # [10, 1600, 1]
+            input_aco = torch.permute(
+                torch.abs(torch.fft.fft(input_aco)), [2, 0, 1]
+            )  # [1, 10, 1600]
+            input_aco = torch.unsqueeze(input_aco, 0)  # [1, 1, 10, 1600]
+
             data = {
                 "shake": {
                     "audio": input_aco,
@@ -120,7 +149,7 @@ class SimpleClassifier(Node):
             with TimeProfiler() as timer:
                 if self.config["multi_class"]:
                     for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                        result[VEHICLE_TYPES[n+1]] = logit
+                        result[VEHICLE_TYPES[n + 1]] = logit
                 else:
                     prediction = self.model.infer(data).tolist()[0]
                     if not all(x == 0 for x in self.window) and len(self.window) > 0: # If not all elements in self.window are 0 (no-vehicle)
@@ -149,9 +178,9 @@ class SimpleClassifier(Node):
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, "dsense", result)
-            logger.info(f"{self.pub_topic}: {msg}")
-            self.publish(self.pub_topic, json.dumps(msg))
+            msg = classification_msg(start_time, end_time, self.model_name, result)
+            logger.info(f"{self.pub_topic_vehicle}: {msg}")
+            self.publish(self.pub_topic_vehicle, json.dumps(msg))
 
     async def run(self):
         try:

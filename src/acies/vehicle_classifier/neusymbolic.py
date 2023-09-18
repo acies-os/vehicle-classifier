@@ -10,8 +10,10 @@ from acies.neusymbolic.network import InferModel
 from acies.node import Node
 from acies.node import common_options
 from acies.node import logger
+from acies.vehicle_classifier.utils import DistInference
 from acies.vehicle_classifier.utils import TimeProfiler
 from acies.vehicle_classifier.utils import classification_msg
+from acies.vehicle_classifier.utils import distance_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
@@ -35,7 +37,15 @@ class NeuSymbolicClassifier(Node):
         self.input_len = 1
 
         # the topic we publish inference results to
-        self.pub_topic = f"{self.get_hostname()}/vehicle"
+        self.pub_topic_vehicle = f"{self.get_hostname()}/vehicle"
+
+        # the topic we publish target distance results to
+        self.pub_topic_distance = f"{self.get_hostname()}/distance"
+
+        # distance classifier
+        self.distance_classifier = DistInference()
+
+        self.model_name = "neusym"
 
     def load_model(self, path_to_weight: str):
         """Load model from give path."""
@@ -55,6 +65,17 @@ class NeuSymbolicClassifier(Node):
                 data = json.loads(data)
                 mod, data = normalize_key(data)
                 self.buffs[mod].append(data)
+
+        # publish distance info
+        if len(self.buffs["sei"]) >= 1 and len(self.buffs["aco"]) >= 1:
+            # access data without taking it out of the queue
+            input_sei = self.buffs["sei"][-1]
+            # access data without taking it out of the queue
+            input_aco = self.buffs["aco"][-1]
+            dist_input = {"x_sei": input_sei["samples"], "x_aud": input_aco["samples"]}
+            dist: int = self.distance_classifier.predict_distance(dist_input)
+            dist_msg = distance_msg(input_sei["timestamp"], self.model_name, dist)
+            self.publish(self.pub_topic_distance, json.dumps(dist_msg))
 
         # check if we have enough data to run inference
         if (
@@ -88,9 +109,9 @@ class NeuSymbolicClassifier(Node):
                 result = self.model(input_aco)
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, "neusym", result)
-            logger.info(f"{self.pub_topic}: {msg}")
-            self.publish(self.pub_topic, json.dumps(msg))
+            msg = classification_msg(start_time, end_time, self.model_name, result)
+            logger.info(f"{self.pub_topic_vehicle}: {msg}")
+            self.publish(self.pub_topic_vehicle, json.dumps(msg))
 
     async def run(self):
         try:
