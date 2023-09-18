@@ -170,7 +170,7 @@ class DistInference(object):
         x_aud = np.array(data["x_aud"])
         x_sei = np.array(data["x_sei"])
         prediction = self.build_trace(x_aud, x_sei)
-        return prediction
+        return int(prediction)
 
     def build_trace(self, packet_audio, packet_geo):
 
