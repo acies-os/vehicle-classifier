@@ -26,6 +26,9 @@ class SimpleClassifier(Node):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
+        logger.info!(f"DeepSense weight: {weight}")
+        logger.info!(f"DeepSense config: {config}")
+
         # your inference model
         device = select_device(str(device))
         config = load_yaml(config)
