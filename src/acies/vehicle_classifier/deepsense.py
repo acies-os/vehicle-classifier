@@ -19,7 +19,7 @@ from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
 
-VEHICLE_TYPES = ["no-vehicle", "polaris", "warthog", "silverado", "husky"]
+VEHICLE_TYPES = ["no-vehicle", "polaris", "warthog", "silverado"]
 
 class SimpleClassifier(Node):
     def __init__(self, weight, config, device, *args, **kwargs):
@@ -30,7 +30,7 @@ class SimpleClassifier(Node):
         device = select_device(str(device))
         config = load_yaml(config)
         self.model = Inference(weight, config, device)
-
+        self.config = config
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
 
@@ -114,8 +114,12 @@ class SimpleClassifier(Node):
 
             result = {}
             with TimeProfiler() as timer:
-                for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                    result[VEHICLE_TYPES[n]] = logit
+                if self.config["multi_class"]:
+                    for n, logit in enumerate(self.model.infer(data).tolist()[0]):
+                        result[VEHICLE_TYPES[n+1]] = logit
+                else:
+                    for n, logit in enumerate(self.model.infer(data).tolist()[0]):
+                        result[VEHICLE_TYPES[n]] = logit
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
