@@ -167,7 +167,9 @@ class DistInference(object):
 
     def predict_distance(self, data):
         # Returns 0,1,2: 0 for far and 2 for close
-        prediction = self.build_trace(data["x_aud"], data["x_sei"])
+        x_aud = np.array(data["x_aud"])
+        x_sei = np.array(data["x_sei"])
+        prediction = self.build_trace(x_aud, x_sei)
         return prediction
 
     def build_trace(self, packet_audio, packet_geo):
