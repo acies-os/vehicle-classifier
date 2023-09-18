@@ -48,7 +48,7 @@ class FoundationSenseClassifier(Node):
         return model
     
     def compute_husky_score(self, predictions):
-        no_car_cf = predictions[-1]
+        no_car_cf = predictions[0]
 
         no_car_threshold = 0.70
         vehicle_threshold = 0.60
@@ -57,7 +57,7 @@ class FoundationSenseClassifier(Node):
 
         if no_car_cf < no_car_threshold:
             # there is a car
-            vehicle_predictions = predictions[:-1]
+            vehicle_predictions = predictions[1:]
 
             # get a list of detected car with confidence score above the threshold
             classified_vehicles = [vec for vec in vehicle_predictions if vec >= vehicle_threshold]
@@ -127,7 +127,7 @@ class FoundationSenseClassifier(Node):
 
                 
                 husky_cf = self.compute_husky_score(predictions)
-                result = {class_names[i].lower(): round(score, 6) for i, score in enumerate(predictions[:-1])}
+                result = {class_names[i].lower(): round(score, 6) for i, score in enumerate(predictions[1:])}
                 result["husky"] = husky_cf
 
 
