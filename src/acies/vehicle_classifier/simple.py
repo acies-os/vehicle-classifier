@@ -38,22 +38,25 @@ class SimpleClassifier(Node):
         self.input_len = 1  # intra window for now
 
         # the topic we publish inference results to
-        self.pub_topic_vehicle = f"{self.get_hostname()}/vehicle"
+        self.model_name = "simple"
+        self.pub_topic_vehicle = f"{self.get_hostname()}/{self.model_name}/vehicle"
 
         # the topic we publish target distance results to
-        self.pub_topic_distance = f"{self.get_hostname()}/distance"
+        self.pub_topic_distance = f"{self.get_hostname()}/{self.model_name}/distance"
 
         # distance classifier
         self.distance_classifier = DistInference()
 
-        self.model_name = "simple"
-        
         # 1. Variables for energy detector
-        self.acoustic_energy_buffer = [] # Buffer for energy level for acoustic signal
-        self.acoustic_energy_buffer_size = 2 # Maximum enegy level buffer size for acoustic signal
+        self.acoustic_energy_buffer = []  # Buffer for energy level for acoustic signal
+        self.acoustic_energy_buffer_size = (
+            2  # Maximum enegy level buffer size for acoustic signal
+        )
 
-        self.seismic_energy_buffer = [] # Buffer for energy level for seismic signal
-        self.seismic_energy_buffer_size = 2 # Maximum enegy level buffer size for seismic signal
+        self.seismic_energy_buffer = []  # Buffer for energy level for seismic signal
+        self.seismic_energy_buffer_size = (
+            2  # Maximum enegy level buffer size for seismic signal
+        )
 
     def inference(self):
         # buffer incoming messages
@@ -77,8 +80,16 @@ class SimpleClassifier(Node):
             self.publish(self.pub_topic_distance, json.dumps(dist_msg))
 
             # 2. Calcualte current energy levels, update energy bufferes
-            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(input_sei["samples"], self.seismic_energy_buffer, self.seismic_energy_buffer_size)
-            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(input_aco["samples"], self.acoustic_energy_buffer, self.acoustic_energy_buffer_size)
+            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(
+                input_sei["samples"],
+                self.seismic_energy_buffer,
+                self.seismic_energy_buffer_size,
+            )
+            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(
+                input_aco["samples"],
+                self.acoustic_energy_buffer,
+                self.acoustic_energy_buffer_size,
+            )
         # check if we have enough data to run inference
         if (
             len(self.buffs["sei"]) >= self.input_len
@@ -119,7 +130,9 @@ class SimpleClassifier(Node):
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             # 3. Publish energy level and classification result
-            msg = classification_msg(start_time, end_time, self.model_name, result, sei_energy, aco_energy)
+            msg = classification_msg(
+                start_time, end_time, self.model_name, result, sei_energy, aco_energy
+            )
             logger.info(f"{self.pub_topic_vehicle}: {msg}")
             self.publish(self.pub_topic_vehicle, json.dumps(msg))
 

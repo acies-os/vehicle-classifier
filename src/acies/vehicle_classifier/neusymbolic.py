@@ -49,15 +49,14 @@ class NeuSymbolicClassifier(Node):
         self.input_len = 1
 
         # the topic we publish inference results to
-        self.pub_topic_vehicle = f"{self.get_hostname()}/vehicle"
+        self.model_name = "neusym"
+        self.pub_topic_vehicle = f"{self.get_hostname()}/{self.model_name}/vehicle"
 
         # the topic we publish target distance results to
-        self.pub_topic_distance = f"{self.get_hostname()}/distance"
+        self.pub_topic_distance = f"{self.get_hostname()}/{self.model_name}/distance"
 
         # distance classifier
         self.distance_classifier = DistInference()
-
-        self.model_name = "neusym"
 
     def load_model(self, path_to_weight: str):
         """Load model from give path."""
@@ -90,8 +89,16 @@ class NeuSymbolicClassifier(Node):
             self.publish(self.pub_topic_distance, json.dumps(dist_msg))
 
             # 2. Calcualte current energy levels, update energy bufferes
-            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(input_sei["samples"], self.seismic_energy_buffer, self.seismic_energy_buffer_size)
-            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(input_aco["samples"], self.acoustic_energy_buffer, self.acoustic_energy_buffer_size)
+            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(
+                input_sei["samples"],
+                self.seismic_energy_buffer,
+                self.seismic_energy_buffer_size,
+            )
+            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(
+                input_aco["samples"],
+                self.acoustic_energy_buffer,
+                self.acoustic_energy_buffer_size,
+            )
 
         # check if we have enough data to run inference
         if (

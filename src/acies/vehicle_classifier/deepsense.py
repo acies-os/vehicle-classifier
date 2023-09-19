@@ -43,11 +43,15 @@ class SimpleClassifier(Node):
         self.window_size = 10
 
         # 1. Variables for energy detector
-        self.acoustic_energy_buffer = [] # Buffer for energy level for acoustic signal
-        self.acoustic_energy_buffer_size = 2 # Maximum enegy level buffer size for acoustic signal
+        self.acoustic_energy_buffer = []  # Buffer for energy level for acoustic signal
+        self.acoustic_energy_buffer_size = (
+            2  # Maximum enegy level buffer size for acoustic signal
+        )
 
-        self.seismic_energy_buffer = [] # Buffer for energy level for seismic signal
-        self.seismic_energy_buffer_size = 2 # Maximum enegy level buffer size for seismic signal
+        self.seismic_energy_buffer = []  # Buffer for energy level for seismic signal
+        self.seismic_energy_buffer_size = (
+            2  # Maximum enegy level buffer size for seismic signal
+        )
 
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
@@ -59,15 +63,14 @@ class SimpleClassifier(Node):
         self.input_len = 2
 
         # the topic we publish inference results to
-        self.pub_topic_vehicle = f"{self.get_hostname()}/vehicle"
+        self.model_name = "dsense"
+        self.pub_topic_vehicle = f"{self.get_hostname()}/{self.model_name}/vehicle"
 
         # the topic we publish target distance results to
-        self.pub_topic_distance = f"{self.get_hostname()}/distance"
+        self.pub_topic_distance = f"{self.get_hostname()}/{self.model_name}/distance"
 
         # distance classifier
         self.distance_classifier = DistInference()
-
-        self.model_name = "dsense"
 
     def segment_signal(self, signal, window_length, overlap_length):
         segments = []
@@ -78,16 +81,18 @@ class SimpleClassifier(Node):
             start = start + window_length - overlap_length
         segments = torch.stack(segments, dim=0)
         return segments
-    
+
     def generate_result(self, prediction):
         result = {}
         if self.config["multi_class"]:
             for n, logit in enumerate(prediction):
                 result[VEHICLE_TYPES[n + 1]] = logit
         else:
-            if not all(x == 0 for x in self.window) and len(self.window) > 0: # If not all elements in self.window are 0 (no-vehicle)
+            if (
+                not all(x == 0 for x in self.window) and len(self.window) > 0
+            ):  # If not all elements in self.window are 0 (no-vehicle)
                 logger.debug("not all elements in self.window are 0")
-                result[VEHICLE_TYPES[0]] = 0.0 # Suppress no-vehicle
+                result[VEHICLE_TYPES[0]] = 0.0  # Suppress no-vehicle
                 vehicle_occurances = len([x for x in self.window if x != 0])
                 for n in range(1, len(VEHICLE_TYPES)):
                     result[VEHICLE_TYPES[n]] = self.window.count(n) / vehicle_occurances
@@ -103,7 +108,7 @@ class SimpleClassifier(Node):
 
             # Latest prediction enqueue
             if len(self.window) < self.window_size:
-                    self.window.append(np.argmax(prediction))
+                self.window.append(np.argmax(prediction))
             else:
                 self.window.pop(0)
                 self.window.append(np.argmax(prediction))
@@ -131,8 +136,16 @@ class SimpleClassifier(Node):
             self.publish(self.pub_topic_distance, json.dumps(dist_msg))
 
             # 2. Calcualte current energy levels, update energy bufferes
-            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(input_sei["samples"], self.seismic_energy_buffer, self.seismic_energy_buffer_size)
-            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(input_aco["samples"], self.acoustic_energy_buffer, self.acoustic_energy_buffer_size)
+            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(
+                input_sei["samples"],
+                self.seismic_energy_buffer,
+                self.seismic_energy_buffer_size,
+            )
+            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(
+                input_aco["samples"],
+                self.acoustic_energy_buffer,
+                self.acoustic_energy_buffer_size,
+            )
 
         # check if we have enough data to run inference
         if (
@@ -163,7 +176,7 @@ class SimpleClassifier(Node):
             assert (
                 len(input_aco) == 8000 * self.input_len
             ), f"input_aco={len(input_aco)}"
-            
+
             # Convert to tensor from numpy
             input_sei = torch.from_numpy(input_sei).float()
             input_aco = torch.from_numpy(input_aco).float()
@@ -196,7 +209,9 @@ class SimpleClassifier(Node):
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
             # 3. Publish energy level and classification result
-            msg = classification_msg(start_time, end_time, self.model_name, result, sei_energy, aco_energy)
+            msg = classification_msg(
+                start_time, end_time, self.model_name, result, sei_energy, aco_energy
+            )
             logger.info(f"{self.pub_topic_vehicle}: {msg}")
             self.publish(self.pub_topic_vehicle, json.dumps(msg))
 
