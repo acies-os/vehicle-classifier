@@ -21,6 +21,7 @@ from acies.vehicle_classifier.utils import distance_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
+from acies.vehicle_classifier.utils import calculate_mean_energy
 
 VEHICLE_TYPES = ["no-vehicle", "polaris", "warthog", "silverado"]
 
@@ -40,6 +41,13 @@ class SimpleClassifier(Node):
         self.config = config
         self.window = []
         self.window_size = 10
+
+        # 1. Variables for energy detector
+        self.acoustic_energy_buffer = [] # Buffer for energy level for acoustic signal
+        self.acoustic_energy_buffer_size = 2 # Maximum enegy level buffer size for acoustic signal
+
+        self.seismic_energy_buffer = [] # Buffer for energy level for seismic signal
+        self.seismic_energy_buffer_size = 2 # Maximum enegy level buffer size for seismic signal
 
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
@@ -70,6 +78,36 @@ class SimpleClassifier(Node):
             start = start + window_length - overlap_length
         segments = torch.stack(segments, dim=0)
         return segments
+    
+    def generate_result(self, prediction):
+        result = {}
+        if self.config["multi_class"]:
+            for n, logit in enumerate(prediction):
+                result[VEHICLE_TYPES[n + 1]] = logit
+        else:
+            if not all(x == 0 for x in self.window) and len(self.window) > 0: # If not all elements in self.window are 0 (no-vehicle)
+                logger.debug("not all elements in self.window are 0")
+                result[VEHICLE_TYPES[0]] = 0.0 # Suppress no-vehicle
+                vehicle_occurances = len([x for x in self.window if x != 0])
+                for n in range(1, len(VEHICLE_TYPES)):
+                    result[VEHICLE_TYPES[n]] = self.window.count(n) / vehicle_occurances
+                logger.debug(f"after shifting window: {result}")
+                # Print independent prediction
+                independent_result = {}
+                for n, logit in enumerate(prediction):
+                    independent_result[VEHICLE_TYPES[n]] = logit
+                logger.debug(f"Independent prediction: {independent_result}")
+            else:
+                for n, logit in enumerate(prediction):
+                    result[VEHICLE_TYPES[n]] = logit
+
+            # Latest prediction enqueue
+            if len(self.window) < self.window_size:
+                    self.window.append(np.argmax(prediction))
+            else:
+                self.window.pop(0)
+                self.window.append(np.argmax(prediction))
+        return result
 
     def inference(self):
         # buffer incoming messages
@@ -91,6 +129,10 @@ class SimpleClassifier(Node):
             dist: int = self.distance_classifier.predict_distance(dist_input)
             dist_msg = distance_msg(input_sei["timestamp"], self.model_name, dist)
             self.publish(self.pub_topic_distance, json.dumps(dist_msg))
+
+            # 2. Calcualte current energy levels, update energy bufferes
+            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(np.mean(input_sei), self.seismic_energy_buffer, self.seismic_energy_buffer_size)
+            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(np.mean(input_aco), self.acoustic_energy_buffer, self.acoustic_energy_buffer_size)
 
         # check if we have enough data to run inference
         if (
@@ -121,8 +163,11 @@ class SimpleClassifier(Node):
             assert (
                 len(input_aco) == 8000 * self.input_len
             ), f"input_aco={len(input_aco)}"
-
+            
+            # Convert to tensor from numpy
             input_sei = torch.from_numpy(input_sei).float()
+            input_aco = torch.from_numpy(input_aco).float()
+
             input_sei = torch.unsqueeze(input_sei, -1)  # [200, 1]
             input_sei = self.segment_signal(input_sei, 20, 0)  # [10, 20, 1]
             input_sei = torch.permute(
@@ -130,7 +175,6 @@ class SimpleClassifier(Node):
             )  # [1, 10, 20]
             input_sei = torch.unsqueeze(input_sei, 0)  # [1, 1, 10, 20]
 
-            input_aco = torch.from_numpy(input_aco).float()
             input_aco = torch.unsqueeze(input_aco, -1)  # [16000, 1]
             input_aco = self.segment_signal(input_aco, 1600, 0)  # [10, 1600, 1]
             input_aco = torch.permute(
@@ -145,39 +189,14 @@ class SimpleClassifier(Node):
                 }
             }
 
-            result = {}
             with TimeProfiler() as timer:
-                if self.config["multi_class"]:
-                    for n, logit in enumerate(self.model.infer(data).tolist()[0]):
-                        result[VEHICLE_TYPES[n + 1]] = logit
-                else:
-                    prediction = self.model.infer(data).tolist()[0]
-                    if not all(x == 0 for x in self.window) and len(self.window) > 0: # If not all elements in self.window are 0 (no-vehicle)
-                        logger.debug("not all elements in self.window are 0")
-                        result[VEHICLE_TYPES[0]] = 0.0 # Suppress no-vehicle
-                        vehicle_occurances = len([x for x in self.window if x != 0])
-                        for n in range(1, len(VEHICLE_TYPES)):
-                            result[VEHICLE_TYPES[n]] = self.window.count(n) / vehicle_occurances
-                        logger.debug(f"after shifting window: {result}")
-                        # Print independent prediction
-                        independent_result = {}
-                        for n, logit in enumerate(prediction):
-                            independent_result[VEHICLE_TYPES[n]] = logit
-                        logger.debug(f"Independent prediction: {independent_result}")
-                    else:
-                        for n, logit in enumerate(prediction):
-                            result[VEHICLE_TYPES[n]] = logit
-
-                    # Latest prediction enqueue
-                    if len(self.window) < self.window_size:
-                            self.window.append(np.argmax(prediction))
-                    else:
-                        self.window.pop(0)
-                        self.window.append(np.argmax(prediction))
+                prediction = self.model.infer(data).tolist()[0]
+                result = self.generate_result(prediction)
             logger.debug(f"current window: {self.window}")
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, self.model_name, result)
+            # 3. Publish energy level and classification result
+            msg = classification_msg(start_time, end_time, self.model_name, result, sei_energy, aco_energy)
             logger.info(f"{self.pub_topic_vehicle}: {msg}")
             self.publish(self.pub_topic_vehicle, json.dumps(msg))
 

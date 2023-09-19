@@ -7,6 +7,15 @@ from typing import Tuple
 import numpy as np
 
 
+def calculate_mean_energy(sample: float, energy_buffer: List[float], buffer_size: int) -> Tuple[float, List[float]]:
+    energy = np.mean(np.power(sample,2))
+    if len(energy_buffer) >= buffer_size:
+        energy_buffer.pop(0)
+    energy_buffer.append(energy)
+
+    mean_energy = np.mean(energy_buffer)
+    return mean_energy, energy_buffer
+
 def normalize_key(data: Dict) -> Tuple[str, Dict]:
     assert "samples" in data
     if "channel" in data:
@@ -24,9 +33,10 @@ def get_time_range(data: List[Dict]) -> Tuple[int, int]:
 
 
 def classification_msg(
-    start: int, end: int, model: str, result: Dict[str, float]
+    start: int, end: int, model: str, result: Dict[str, float], seismic_energy: float, acoustic_energy: float
 ) -> Dict:
-    msg = {"start": start, "end": end, "model": model, "result": result}
+    msg = {"start": start, "end": end, "model": model, "result": result, 
+           "seismic_energy_level": seismic_energy, "acoustic_energy_level": acoustic_energy}
     return msg
 
 
