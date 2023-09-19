@@ -7,8 +7,8 @@ from typing import Tuple
 import numpy as np
 
 
-def calculate_mean_energy(sample: float, energy_buffer: List[float], buffer_size: int) -> Tuple[float, List[float]]:
-    energy = np.mean(np.power(sample,2))
+def calculate_mean_energy(sample: List[float], energy_buffer: List[float], buffer_size: int) -> Tuple[float, List[float]]:
+    energy = np.std(sample)
     if len(energy_buffer) >= buffer_size:
         energy_buffer.pop(0)
     energy_buffer.append(energy)
@@ -36,7 +36,7 @@ def classification_msg(
     start: int, end: int, model: str, result: Dict[str, float], seismic_energy: float, acoustic_energy: float
 ) -> Dict:
     msg = {"start": start, "end": end, "model": model, "result": result, 
-           "seismic_energy_level": seismic_energy, "acoustic_energy_level": acoustic_energy}
+           "seismic_energy": seismic_energy, "acoustic_energy": acoustic_energy}
     return msg
 
 
