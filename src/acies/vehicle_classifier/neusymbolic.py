@@ -17,6 +17,7 @@ from acies.vehicle_classifier.utils import distance_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
+from acies.vehicle_classifier.utils import calculate_mean_energy
 
 
 class NeuSymbolicClassifier(Node):
@@ -26,6 +27,17 @@ class NeuSymbolicClassifier(Node):
 
         # your inference model
         self.model = self.load_model(weight)
+
+        # 1. Variables for energy detector
+        self.acoustic_energy_buffer = []  # Buffer for energy level for acoustic signal
+        self.acoustic_energy_buffer_size = (
+            2  # Maximum enegy level buffer size for acoustic signal
+        )
+
+        self.seismic_energy_buffer = []  # Buffer for energy level for seismic signal
+        self.seismic_energy_buffer_size = (
+            2  # Maximum enegy level buffer size for seismic signal
+        )
 
         # buffer incoming messages
         self.buffs = {"sei": deque(), "aco": deque()}
@@ -77,6 +89,18 @@ class NeuSymbolicClassifier(Node):
             dist_msg = distance_msg(input_sei["timestamp"], self.model_name, dist)
             self.publish(self.pub_topic_distance, json.dumps(dist_msg))
 
+            # 2. Calcualte current energy levels, update energy bufferes
+            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(
+                np.mean(input_sei),
+                self.seismic_energy_buffer,
+                self.seismic_energy_buffer_size,
+            )
+            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(
+                np.mean(input_aco),
+                self.acoustic_energy_buffer,
+                self.acoustic_energy_buffer_size,
+            )
+
         # check if we have enough data to run inference
         if (
             len(self.buffs["sei"]) >= self.input_len
@@ -109,7 +133,10 @@ class NeuSymbolicClassifier(Node):
                 result = self.model(input_aco)
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, self.model_name, result)
+            # 3. Publish energy level and classification result
+            msg = classification_msg(
+                start_time, end_time, self.model_name, result, sei_energy, aco_energy
+            )
             logger.info(f"{self.pub_topic_vehicle}: {msg}")
             self.publish(self.pub_topic_vehicle, json.dumps(msg))
 
