@@ -123,8 +123,8 @@ class FoundationSenseClassifier(Node):
             self.publish(self.pub_topic_distance, json.dumps(dist_msg))
             
             # 2. Calcualte current energy levels, update energy bufferes
-            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(input_sei, self.seismic_energy_buffer, self.seismic_energy_buffer_size)
-            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(input_aco, self.acoustic_energy_buffer, self.acoustic_energy_buffer_size)
+            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(input_sei["samples"], self.seismic_energy_buffer, self.seismic_energy_buffer_size)
+            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(input_aco["samples"], self.acoustic_energy_buffer, self.acoustic_energy_buffer_size)
 
         # check if we have enough data to run inference
         if (
