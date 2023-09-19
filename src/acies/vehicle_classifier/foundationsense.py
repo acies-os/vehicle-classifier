@@ -18,6 +18,7 @@ from acies.vehicle_classifier.utils import distance_msg
 from acies.vehicle_classifier.utils import get_time_range
 from acies.vehicle_classifier.utils import normalize_key
 from acies.vehicle_classifier.utils import update_sys_argv
+from acies.vehicle_classifier.utils import calculate_mean_energy
 
 
 class FoundationSenseClassifier(Node):
@@ -47,6 +48,10 @@ class FoundationSenseClassifier(Node):
         self.distance_classifier = DistInference()
 
         self.model_name = "fsense"
+        
+        # Energy level calculation
+        self.acoustic_energy_buffer = [] # Buffer for energy level for acoustic signal
+        self.acoustic_energy_buffer_size = 2 # Maximum enegy level buffer size for acoustic signal
 
     def load_model(self, path_to_weight: str):
         """Load model from give path."""
@@ -102,6 +107,10 @@ class FoundationSenseClassifier(Node):
             dist: int = self.distance_classifier.predict_distance(dist_input)
             dist_msg = distance_msg(input_sei["timestamp"], self.model_name, dist)
             self.publish(self.pub_topic_distance, json.dumps(dist_msg))
+            
+            # 2. Calcualte current energy levels, update energy bufferes
+            sei_energy, self.seismic_energy_buffer = calculate_mean_energy(np.mean(input_sei), self.seismic_energy_buffer, self.seismic_energy_buffer_size)
+            aco_energy, self.acoustic_energy_buffer = calculate_mean_energy(np.mean(input_aco), self.acoustic_energy_buffer, self.acoustic_energy_buffer_size)
 
         # check if we have enough data to run inference
         if (
@@ -134,8 +143,9 @@ class FoundationSenseClassifier(Node):
             ), f"input_aco={len(input_aco)}"
 
             input_sei = torch.from_numpy(input_sei).float()
-            input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
             input_aco = torch.from_numpy(input_aco).float()
+
+            input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
             input_aco = torch.reshape(input_aco, (1, 1, 10, 1600))
 
             data = {
@@ -162,7 +172,7 @@ class FoundationSenseClassifier(Node):
 
             logger.debug(f"Inference time: {timer.elapsed_time_ns / 1e6} ms")
 
-            msg = classification_msg(start_time, end_time, self.model_name, result)
+            msg = classification_msg(start_time, end_time, self.model_name, result, sei_energy, aco_energy)
             logger.info(f"{self.pub_topic_vehicle}: {msg}")
             self.publish(self.pub_topic_vehicle, json.dumps(msg))
 
