@@ -55,6 +55,17 @@ class FoundationSenseClassifier(Node):
 
         self.seismic_energy_buffer = [] # Buffer for energy level for seismic signal
         self.seismic_energy_buffer_size = 2 # Maximum enegy level buffer size for seismic signal
+    
+    def segment_signal(self, signal, window_length, overlap_length):
+        segments = []
+        start = 0
+        while start <= len(signal) - window_length:
+            end = start + window_length
+            segments.append(signal[start:end])
+            start = start + window_length - overlap_length
+        segments = torch.stack(segments, dim=0)
+        return segments
+    
 
     def load_model(self, path_to_weight: str):
         """Load model from give path."""
@@ -145,11 +156,23 @@ class FoundationSenseClassifier(Node):
                 len(input_aco) == 8000 * self.input_len
             ), f"input_aco={len(input_aco)}"
 
+             # Convert to tensor from numpy
             input_sei = torch.from_numpy(input_sei).float()
             input_aco = torch.from_numpy(input_aco).float()
 
-            input_sei = torch.reshape(input_sei, (1, 1, 10, 20))
-            input_aco = torch.reshape(input_aco, (1, 1, 10, 1600))
+            input_sei = torch.unsqueeze(input_sei, -1)  # [200, 1]
+            input_sei = self.segment_signal(input_sei, 20, 0)  # [10, 20, 1]
+            input_sei = torch.permute(
+                torch.abs(torch.fft.fft(input_sei)), [2, 0, 1]
+            )  # [1, 10, 20]
+            input_sei = torch.unsqueeze(input_sei, 0)  # [1, 1, 10, 20]
+
+            input_aco = torch.unsqueeze(input_aco, -1)  # [16000, 1]
+            input_aco = self.segment_signal(input_aco, 1600, 0)  # [10, 1600, 1]
+            input_aco = torch.permute(
+                torch.abs(torch.fft.fft(input_aco)), [2, 0, 1]
+            )  # [1, 10, 1600]
+            input_aco = torch.unsqueeze(input_aco, 0)  # [1, 1, 10, 1600]
 
             data = {
                 "shake": {
