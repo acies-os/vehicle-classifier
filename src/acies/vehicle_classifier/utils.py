@@ -256,3 +256,10 @@ class DistInference(object):
 
         # return new_distance
         return audio_state
+
+
+def count_elements(model, only_required_grad=False):
+    if only_required_grad:
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
