@@ -4,18 +4,18 @@ version = "0.1.0"
 description = "Acies vehicle classifilers built with state-of-the-art models."
 authors = [
     { name = "Jinyang Li", email = "jinyang7@illinois.edu" },
-    { name = "Denizhan Kara", email = "kara4@illinois.edu" },
+    { name = "Yizhuo Chen", email = "yizhuoc@illinois.edu" },
     { name = "Tianshi Wang", email = "tianshi34@illinois.edu" },
-    { name = "Yizhuo Chen", email = "yizhuoc@illinois.edu"},
     { name = "Tommy Kimura", email = "tkimura4@illinois.edu" },
+    { name = "Denizhan Kara", email = "kara4@illinois.edu" },
 ]
 dependencies = [
     "numpy>=1.24.4",
     "acies-py @ git+ssh://github.com/acies-os/acies-py.git",
-    "vehicle-detection-baselines @ git+ssh://github.com/acies-os/vehicle-detection-baselines.git",
-    "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
-    "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
-    "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
+    # "vehicle-detection-baselines @ git+ssh://github.com/acies-os/vehicle-detection-baselines.git",
+    # "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
+    # "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
+    # "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -33,12 +33,7 @@ build-backend = "hatchling.build"
 
 [tool.rye]
 managed = true
-dev-dependencies = [
-    "black>=23.9.0",
-    "ruff>=0.0.287",
-    "ruff-lsp>=0.0.38",
-    "pyright>=1.1.326",
-]
+dev-dependencies = []
 
 [tool.hatch.metadata]
 allow-direct-references = true
