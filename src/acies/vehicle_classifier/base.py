@@ -81,6 +81,11 @@ class Classifier(Service):
         log_msg = pretty(asdict(msg), max_seq_length=5, max_width=500, newline='')
         logger.debug(f'inference result: {log_msg}')
 
+        pred, confidence = max(result.items(), key=lambda x: x[1])
+
+        one_label = list(list(meta_data.values())[0].values())[0]['label']
+        logger.info(f'[ ground truth = {one_label} ] detected {pred} ({confidence:.4f})  ')
+
     def infer(self, samples):
         raise NotImplementedError()
 
