@@ -1,6 +1,6 @@
 [project]
 name = "acies-vehicle-classifier"
-version = "0.1.0"
+version = "0.2.0"
 description = "Acies vehicle classifilers built with state-of-the-art models."
 authors = [
     { name = "Jinyang Li", email = "jinyang7@illinois.edu" },

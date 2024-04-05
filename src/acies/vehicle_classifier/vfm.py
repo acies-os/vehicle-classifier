@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import click
+import numpy as np
 from acies.FoundationSense.inference import ModelForInference
 from acies.node.logging import init_logger
 from acies.node.net import common_options, get_zconf
@@ -26,10 +27,14 @@ class VibroFM(Classifier):
         self.modalities = [_mapping[x] for x in self.modalities]
         return model
 
-    def infer(self, samples):
-        samples = {k: self.concat(v) for k, v in samples.items()}
-        # now samples: dict[str, np.ndarray]
-        result = self.model(samples)
+    def infer(self, samples: dict[str, dict[int, np.ndarray]]):
+        arrays = {k: self.concat(v) for k, v in samples.items()}
+        # now arrays: dict[str, np.ndarray]
+        # {'rs1/geo': np.array([...]), 'rs1/mic': np.array([...])}
+
+        # result = self.model(arrays)
+        result = {}
+
         return result
 
 

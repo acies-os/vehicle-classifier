@@ -1,6 +1,6 @@
 import logging
 import queue
-import time
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
@@ -8,7 +8,7 @@ import click
 import numpy as np
 from acies.node.logging import init_logger
 from acies.node.net import common_options, get_zconf
-from acies.node.service import Service
+from acies.node.service import Service, pretty
 from acies.vehicle_classifier.buffer import StreamBuffer
 from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
@@ -49,12 +49,13 @@ class Classifier(Service):
     def run_inference(self):
         keys = [self.ns_topic_str(x) for x in self.modalities]
         try:
-            samples = self.buffer.get(keys, self.input_len)
+            samples, meta_data = self.buffer.get(keys, self.input_len)
         except ValueError:
             return
 
         with TimeProfiler() as timer:
             result = self.infer(samples)
+
         infer_time_ms = timer.elapsed_time_ns / 1e6
         log_msg = {'inference_time_ms': infer_time_ms}
         logger.debug(f'{log_msg}')
@@ -64,15 +65,18 @@ class Classifier(Service):
             meta={
                 'timestamp': datetime.now().timestamp(),
                 'inference_time_ms': infer_time_ms,
+                'inputs': dict(meta_data),
             },
         )
         self.send('vehicle', msg)
+        log_msg = pretty(asdict(msg), max_seq_length=5, max_width=500, newline='')
+        logger.debug(f'inference result: {log_msg}')
 
     def infer(self, samples):
         raise NotImplementedError()
 
     @staticmethod
-    def concat(arrays: dict[str, np.ndarray]):
+    def concat(arrays: dict[int, np.ndarray]):
         # the samples in v are sorted by timestamp
         assert list(arrays.keys()) == sorted(arrays.keys())
         return np.concatenate(list(arrays.values()))
@@ -85,8 +89,8 @@ class Classifier(Service):
 
         if any(topic.endswith(x) for x in ['geo', 'mic']):
             timestamp = int(msg.meta['timestamp'])
-            tensor = np.array(msg.payload['samples'])
-            self.buffer.add(topic, timestamp, tensor)
+            array = np.array(msg.payload['samples'])
+            self.buffer.add(topic, timestamp, array, msg.meta)
         else:
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
