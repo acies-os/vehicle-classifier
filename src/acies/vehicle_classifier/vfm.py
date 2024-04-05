@@ -4,7 +4,6 @@ from pathlib import Path
 import click
 import numpy as np
 import torch
-
 from acies.FoundationSense.inference import ModelForInference
 from acies.node.logging import init_logger
 from acies.node.net import common_options, get_zconf
@@ -31,34 +30,27 @@ class VibroFM(Classifier):
 
     def infer(self, samples: dict[str, dict[int, np.ndarray]]):
         arrays = {k: self.concat(v) for k, v in samples.items()}
-        
-        # now arrays: dict[str, np.ndarray]
-        # {'rs1/geo': np.array([...]), 'rs1/mic': np.array([...])}
-        seismic_data = arrays["rs1/geo"]
-        acoustic_data = arrays["rs1/mic"]
-        
-        seismic_data = seismic_data[::2].reshape(1, 10, 20)
-        acoustic_data = acoustic_data[::2].reshape(1, 10, 1600)
-        
+        arrays = {k.split('/')[1]: v for k, v in arrays.items()}
+        seismic_data = arrays['geo']
+        acoustic_data = arrays['mic']
+
+        seismic_data = seismic_data[::2].reshape(1, 1, 10, 20)
+        acoustic_data = acoustic_data[::2].reshape(1, 1, 10, 1600)
+
         seismic_data = torch.from_numpy(seismic_data)
         acoustic_data = torch.from_numpy(acoustic_data)
-        
-        data = {
-            "shake": {
-                "audio": acoustic_data,
-                "seismic": seismic_data
-            }
-        }
 
-        logit = self.model(data) # returns logits [[x, y, z, w]], 
+        data = {'shake': {'audio': acoustic_data, 'seismic': seismic_data}}
+
+        logit = self.model(data)  # returns logits [[x, y, z, w]],
+
         # result = {
         #     "gle350": logit[0][0],
         #     "miata": logit[0][1],
         #     "cx30": logit[0][2],
         #     "mustang": logit[0][3],
         # }
-        
-        result = zip(np.arange(4), logit[0])
+        result = dict(zip(np.arange(4), logit[0]))
 
         return result
 

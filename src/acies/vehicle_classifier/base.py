@@ -14,6 +14,13 @@ from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
 logger = logging.getLogger('acies.infer')
 
+LABEL_TO_STR = {
+    0: 'gle350',
+    1: 'miata',
+    2: 'cx30',
+    3: 'mustang',
+}
+
 
 class Classifier(Service):
     def __init__(self, classifier_config_file, *args, **kwargs):
@@ -55,6 +62,8 @@ class Classifier(Service):
 
         with TimeProfiler() as timer:
             result = self.infer(samples)
+
+        result = {LABEL_TO_STR[k]: v for k, v in result.items()}
 
         infer_time_ms = timer.elapsed_time_ns / 1e6
         log_msg = {'inference_time_ms': infer_time_ms}
