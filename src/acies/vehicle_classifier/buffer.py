@@ -35,7 +35,7 @@ class StreamBuffer:
         for timestamp in sorted(self._timestamps):
             if all(timestamp - i in self._data[k] for k in keys for i in range(n)):
                 for k in keys:
-                    for i in range(n):
+                    for i in reversed(range(n)):
                         t = timestamp - i
                         sample = self._data[k].pop(t)
                         self._timestamps[t] -= 1

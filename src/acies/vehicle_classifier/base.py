@@ -27,7 +27,7 @@ class Classifier(Service):
         # each message contains 1s of data:
         #     seismic  :    200 samples
         #     acoustic : 16_000 samples
-        self.input_len = 3
+        self.input_len = 2
 
         # the topic we publish inference results to
         self.pub_topic = self.ns_topic_str('vehicle')
@@ -70,6 +70,12 @@ class Classifier(Service):
 
     def infer(self, samples):
         raise NotImplementedError()
+
+    @staticmethod
+    def concat(arrays: dict[str, np.ndarray]):
+        # the samples in v are sorted by timestamp
+        assert list(arrays.keys()) == sorted(arrays.keys())
+        return np.concatenate(list(arrays.values()))
 
     def handle_message(self):
         try:

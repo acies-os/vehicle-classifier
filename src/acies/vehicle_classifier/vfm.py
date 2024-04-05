@@ -22,11 +22,15 @@ class VibroFM(Classifier):
             f'#elements={count_elements(model)}'
         )
         self.modalities = model.args.dataset_config['modality_names']
-        self.modalities = ['acoustic' if x == 'audio' else x for x in self.modalities]
+        _mapping = {'seismic': 'geo', 'acoustic': 'mic', 'audio': 'mic', 'sei': 'geo', 'aco': 'mic'}
+        self.modalities = [_mapping[x] for x in self.modalities]
         return model
 
     def infer(self, samples):
-        pass
+        samples = {k: self.concat(v) for k, v in samples.items()}
+        # now samples: dict[str, np.ndarray]
+        result = self.model(samples)
+        return result
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
@@ -38,7 +42,7 @@ def main(mode, connect, listen, topic, namespace, proc_name, weight, model_args)
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
 
-    init_logger(f'{namespace}_{proc_name}.log', get_logger='acies.infer')
+    init_logger(f'{namespace}_{proc_name}.log', get_logger='acies')
     z_conf = get_zconf(mode, connect, listen)
 
     # initialize the class
