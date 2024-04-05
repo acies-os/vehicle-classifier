@@ -1,8 +1,6 @@
 import sys
 from time import perf_counter_ns
-from typing import Dict
-from typing import List
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -20,18 +18,18 @@ def calculate_mean_energy(
 
 
 def normalize_key(data: Dict) -> Tuple[str, Dict]:
-    assert "samples" in data
-    if "channel" in data:
-        return "sei", data
-    elif "sample_rate":
-        return "aco", data
+    assert 'samples' in data
+    if 'channel' in data:
+        return 'sei', data
+    elif 'sample_rate':
+        return 'aco', data
     else:
-        raise KeyError(f"{data} should contain key: `channel` or `sample_rate`")
+        raise KeyError(f'{data} should contain key: `channel` or `sample_rate`')
 
 
 def get_time_range(data: List[Dict]) -> Tuple[int, int]:
-    start = data[0]["timestamp"]
-    end = data[-1]["timestamp"]
+    start = data[0]['timestamp']
+    end = data[-1]['timestamp']
     return start, end
 
 
@@ -44,18 +42,18 @@ def classification_msg(
     acoustic_energy: float,
 ) -> Dict:
     msg = {
-        "start": start,
-        "end": end,
-        "model": model,
-        "result": result,
-        "seismic_energy": seismic_energy,
-        "acoustic_energy": acoustic_energy,
+        'start': start,
+        'end': end,
+        'model': model,
+        'result': result,
+        'seismic_energy': seismic_energy,
+        'acoustic_energy': acoustic_energy,
     }
     return msg
 
 
 def distance_msg(timestamp: int, model: str, distance: float) -> Dict:
-    msg = {"timestamp": timestamp, "model": model, "distance": distance}
+    msg = {'timestamp': timestamp, 'model': model, 'distance': distance}
     return msg
 
 
@@ -137,7 +135,7 @@ class DistInference(object):
         """
 
         ### classifier init
-        self.targets = ["Warhog", "Polaris", "Silverado"]  # , "Husky"
+        self.targets = ['Warhog', 'Polaris', 'Silverado']  # , "Husky"
         self.acoustic_energy_threshold = 12e10
         self.seismic_energy_threshold = 6.1e10
 
@@ -161,16 +159,13 @@ class DistInference(object):
 
     def baseline_detection(self, data):
         # this is for pure detection, i.e. no ML, is there a vehicle or not?
-        x_aud = data["x_aud"]
-        x_sei = data["x_sei"]
+        x_aud = data['x_aud']
+        x_sei = data['x_sei']
         # TODO: Mistake, downsampling affects energy calculation
         energy_aud = calculate_energy(x_aud)
         energy_sei = calculate_energy(x_sei)
 
-        if (
-            energy_aud > self.acoustic_energy_threshold
-            and energy_sei > self.seismic_energy_threshold
-        ):
+        if energy_aud > self.acoustic_energy_threshold and energy_sei > self.seismic_energy_threshold:
             return True
         else:
             return False
@@ -192,8 +187,8 @@ class DistInference(object):
 
     def predict_distance(self, data):
         # Returns 0,1,2: 0 for far and 2 for close
-        x_aud = np.array(data["x_aud"])
-        x_sei = np.array(data["x_sei"])
+        x_aud = np.array(data['x_aud'])
+        x_sei = np.array(data['x_sei'])
         prediction = self.build_trace(x_aud, x_sei)
         return int(prediction)
 
@@ -203,10 +198,7 @@ class DistInference(object):
             # print(geo_buffer.get_queue())
             return self.init_distance
 
-        if (
-            self.geo_buffer.length() > self.past_geo
-            and self.geo_buffer.length() < self.future_geo + self.past_geo
-        ):
+        if self.geo_buffer.length() > self.past_geo and self.geo_buffer.length() < self.future_geo + self.past_geo:
             self.geo_buffer.push(packet_geo)
             self.audio_buffer.push(packet_audio)
             self.past_audio_state_buffer = self.get_audio_state(np.sum(packet_audio**2))

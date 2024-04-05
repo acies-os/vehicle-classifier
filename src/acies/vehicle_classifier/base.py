@@ -7,14 +7,12 @@ from pathlib import Path
 import click
 import numpy as np
 from acies.node.logging import init_logger
-from acies.node.net import common_options
-from acies.node.net import get_zconf
+from acies.node.net import common_options, get_zconf
 from acies.node.service import Service
 from acies.vehicle_classifier.buffer import StreamBuffer
-from acies.vehicle_classifier.utils import TimeProfiler
-from acies.vehicle_classifier.utils import update_sys_argv
+from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
-logger = logging.getLogger("acies.infer")
+logger = logging.getLogger('acies.infer')
 
 
 class Classifier(Service):
@@ -32,16 +30,14 @@ class Classifier(Service):
         self.input_len = 3
 
         # the topic we publish inference results to
-        self.pub_topic = self.ns_topic_str("vehicle")
-        logger.info(f"classification result published to {self.pub_topic}")
+        self.pub_topic = self.ns_topic_str('vehicle')
+        logger.info(f'classification result published to {self.pub_topic}')
 
         self._counter = 0
 
         # your inference model
         classifier_config_file = Path(classifier_config_file)
-        assert (
-            classifier_config_file.exists()
-        ), f"{classifier_config_file} does not exist"
+        assert classifier_config_file.exists(), f'{classifier_config_file} does not exist'
 
         self.modalities = []
         self.model = self.load_model(classifier_config_file)
@@ -60,17 +56,17 @@ class Classifier(Service):
         with TimeProfiler() as timer:
             result = self.infer(samples)
         infer_time_ms = timer.elapsed_time_ns / 1e6
-        log_msg = {"inference_time_ms": infer_time_ms}
-        logger.debug(f"{log_msg}")
+        log_msg = {'inference_time_ms': infer_time_ms}
+        logger.debug(f'{log_msg}')
         msg = self.make_msg(
-            "classification",
+            'classification',
             result,
             meta={
-                "timestamp": datetime.now().timestamp(),
-                "inference_time_ms": infer_time_ms,
+                'timestamp': datetime.now().timestamp(),
+                'inference_time_ms': infer_time_ms,
             },
         )
-        self.send("vehicle", msg)
+        self.send('vehicle', msg)
 
     def infer(self, samples):
         raise NotImplementedError()
@@ -81,12 +77,12 @@ class Classifier(Service):
         except queue.Empty:
             return
 
-        if any(topic.endswith(x) for x in ["geo", "mic"]):
-            timestamp = int(msg.meta["timestamp"])
-            tensor = np.array(msg.payload["samples"])
+        if any(topic.endswith(x) for x in ['geo', 'mic']):
+            timestamp = int(msg.meta['timestamp'])
+            tensor = np.array(msg.payload['samples'])
             self.buffer.add(topic, timestamp, tensor)
         else:
-            logger.info(f"unhandled msg received at topic {topic}: {msg}")
+            logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
     def run(self):
         while True:
@@ -97,14 +93,14 @@ class Classifier(Service):
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
-@click.option("--weight", help="Model weight", type=str)
-@click.argument("model_args", nargs=-1, type=click.UNPROCESSED)
+@click.option('--weight', help='Model weight', type=str)
+@click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, topic, namespace, proc_name, weight, model_args):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
 
-    init_logger(f"{namespace}_{proc_name}.log", get_logger="acies.infer")
+    init_logger(f'{namespace}_{proc_name}.log', get_logger='acies.infer')
     z_conf = get_zconf(mode, connect, listen)
 
     # initialize the class

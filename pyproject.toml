@@ -20,13 +20,6 @@ dependencies = [
 readme = "README.md"
 requires-python = ">= 3.8"
 
-[tool.ruff.isort]
-force-single-line = true
-
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -48,3 +41,10 @@ acies-vfm = "acies.vehicle_classifier.vfm:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/acies"]
+
+[tool.ruff]
+line-length = 120
+extend-select = ['Q', 'RUF100', 'C90', 'I']
+flake8-quotes = { inline-quotes = 'single', multiline-quotes = 'double' }
+mccabe = { max-complexity = 13 }
+format = { quote-style = 'single' }

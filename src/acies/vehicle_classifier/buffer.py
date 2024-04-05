@@ -1,7 +1,5 @@
-from collections import Counter
-from collections import defaultdict
-from dataclasses import dataclass
-from dataclasses import field
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -12,9 +10,7 @@ class StreamBuffer:
     # {'rs1/mic': {180000: np.ndarray([...]),
     #             },
     # }
-    _data: dict[str, dict[int, np.ndarray]] = field(
-        default_factory=lambda: defaultdict(dict), repr=False
-    )
+    _data: dict[str, dict[int, np.ndarray]] = field(default_factory=lambda: defaultdict(dict), repr=False)
     _timestamps: Counter[int] = field(default_factory=Counter)
 
     def add(self, topic: str, timestamp: int, samples: np.ndarray):
@@ -47,4 +43,4 @@ class StreamBuffer:
                             del self._timestamps[t]
                         result[k][t] = sample
                 return result
-        raise ValueError("not enough data")
+        raise ValueError('not enough data')
