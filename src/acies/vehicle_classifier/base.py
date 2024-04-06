@@ -106,6 +106,15 @@ class Classifier(Service):
             f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, '
             f'E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
         )
+        log_msg = {
+            'pred_label': pred,
+            'confidence': confidence,
+            'true_label': one_meta['label'],
+            'distance': one_meta['distance'],
+            'energy_geo': one_meta['mean_geo_energy'],
+            'energy_mic': one_meta['mean_mic_energy'],
+        }
+        logger.info(f'{log_msg}')
 
     def infer(self, samples):
         raise NotImplementedError()
