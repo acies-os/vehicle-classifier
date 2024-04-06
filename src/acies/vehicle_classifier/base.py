@@ -53,6 +53,21 @@ class Classifier(Service):
         """Load model from give path."""
         raise NotImplementedError
 
+    def combine_meta(self, meta_data: dict[str, dict[int, dict]]):
+        result = {'label': None, 'distance': None, 'mean_geo_energy': [], 'mean_mic_energy': []}
+        for topic, topic_data in meta_data.items():
+            topic = topic.split('/')[1]
+            for t_meta in topic_data.values():
+                result['label'] = t_meta['label']
+                result['distance'] = t_meta['distance']
+                if topic == 'geo':
+                    result['mean_geo_energy'].append(t_meta['energy'])
+                else:
+                    result['mean_mic_energy'].append(t_meta['energy'])
+        result['mean_geo_energy'] = np.mean(result['mean_geo_energy'])
+        result['mean_mic_energy'] = np.mean(result['mean_mic_energy'])
+        return result
+
     def run_inference(self):
         keys = [self.ns_topic_str(x) for x in self.modalities]
         try:
@@ -78,14 +93,18 @@ class Classifier(Service):
             },
         )
         self.send('vehicle', msg)
-        log_msg = pretty(asdict(msg), max_seq_length=5, max_width=500, newline='')
+        log_msg = pretty(asdict(msg), max_seq_length=6, max_width=500, newline='')
         logger.debug(f'inference result: {log_msg}')
 
         pred, confidence = max(result.items(), key=lambda x: x[1])
 
-        one_meta = list(list(meta_data.values())[0].values())[0]
+        one_meta = self.combine_meta(meta_data)
         logger.info(
-            f'detected {pred:<7} ({confidence:.4f}) [ truth={one_meta["label"]:<7} , distance={one_meta["distance"]:6.2f}m ] '
+            f'detected {pred:<7} ({confidence:.4f}): '
+            f'truth={one_meta["label"]:<7}, '
+            f'D={one_meta["distance"]:<6.2f}m, '
+            f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, '
+            f'E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
         )
 
     def infer(self, samples):
