@@ -13,7 +13,7 @@ dependencies = [
     "numpy>=1.24.4",
     "acies-py @ git+ssh://github.com/acies-os/acies-py.git",
     # "vehicle-detection-baselines @ git+ssh://github.com/acies-os/vehicle-detection-baselines.git",
-    # "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
+    "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
     # "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
     "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
 ]
@@ -38,6 +38,7 @@ allow-direct-references = true
 # acies-neusymbolic-classifier = "acies.vehicle_classifier.neusymbolic:main"
 # acies-foundationsense-classifier = "acies.vehicle_classifier.foundationsense:main"
 acies-vfm = "acies.vehicle_classifier.vfm:main"
+acies-ds = "acies.vehicle_classifier.ds:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/acies"]
