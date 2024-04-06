@@ -15,10 +15,10 @@ from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 logger = logging.getLogger('acies.infer')
 
 LABEL_TO_STR = {
-    0: 'gle350',
-    1: 'miata',
-    2: 'cx30',
-    3: 'mustang',
+    0: 'miata',
+    1: 'gle350',
+    2: 'mustang',
+    3: 'cx30',
 }
 
 
@@ -83,8 +83,10 @@ class Classifier(Service):
 
         pred, confidence = max(result.items(), key=lambda x: x[1])
 
-        one_label = list(list(meta_data.values())[0].values())[0]['label']
-        logger.info(f'[ ground truth = {one_label} ] detected {pred} ({confidence:.4f})  ')
+        one_meta = list(list(meta_data.values())[0].values())[0]
+        logger.info(
+            f'detected {pred:<7} ({confidence:.4f}) [ truth={one_meta["label"]:<7} , distance={one_meta["distance"]:6.2f}m ] '
+        )
 
     def infer(self, samples):
         raise NotImplementedError()
