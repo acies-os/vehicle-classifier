@@ -12,6 +12,16 @@ vfm ns:
     --topic {{ns}}/mic \
     --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 
+mae ns:
+    LOGLEVEL=debug acies-vfm \
+    --connect unixsock-stream//tmp/acies-mic.sock \
+    --connect unixsock-stream//tmp/acies-geo.sock \
+    --namespace {{ns}} \
+    --proc_name mae \
+    --topic {{ns}}/geo \
+    --topic {{ns}}/mic \
+    --weight "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
+
 ds ns:
     LOGLEVEL=debug acies-ds \
     --connect unixsock-stream//tmp/acies-mic.sock \
