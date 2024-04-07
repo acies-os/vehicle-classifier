@@ -15,7 +15,8 @@ logger = logging.getLogger('acies.infer')
 
 class VibroFM(Classifier):
     def load_model(self, classifier_config_file: Path):
-        model = ModelForInference(classifier_config_file)
+        freq_mae = True if 'mae' in self.proc_name else False
+        model = ModelForInference(classifier_config_file, freq_mae)
         logger.info(
             f'loaded model to cpu, '
             f'definition from {ModelForInference.__name__}, '
