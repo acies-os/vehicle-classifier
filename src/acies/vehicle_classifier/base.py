@@ -68,53 +68,60 @@ class Classifier(Service):
         result['mean_mic_energy'] = np.mean(result['mean_mic_energy'])
         return result
 
+    def get_keys_per_node(self, modalities):
+        keys = list(self.buffer._data.keys())
+        nodes = set(x.split('/')[0] for x in keys)
+        ns_keys = {n: [f'{n}/{m}' for m in modalities] for n in nodes}
+        return ns_keys
+
     def run_inference(self):
-        keys = [self.ns_topic_str(x) for x in self.modalities]
-        try:
-            samples, meta_data = self.buffer.get(keys, self.input_len)
-        except ValueError:
-            return
+        node_keys = self.get_keys_per_node(self.modalities)
+        for node, keys in node_keys.items():
+            try:
+                samples, meta_data = self.buffer.get(keys, self.input_len)
+            except ValueError:
+                return
 
-        with TimeProfiler() as timer:
-            result = self.infer(samples)
+            with TimeProfiler() as timer:
+                result = self.infer(samples)
 
-        result = {LABEL_TO_STR[k]: v for k, v in result.items()}
+            result = {LABEL_TO_STR[k]: v for k, v in result.items()}
 
-        infer_time_ms = timer.elapsed_time_ns / 1e6
-        log_msg = {'inference_time_ms': infer_time_ms}
-        logger.debug(f'{log_msg}')
-        msg = self.make_msg(
-            'classification',
-            result,
-            meta={
-                'timestamp': datetime.now().timestamp(),
-                'inference_time_ms': infer_time_ms,
-                'inputs': dict(meta_data),
-            },
-        )
-        self.send('vehicle', msg)
-        log_msg = pretty(asdict(msg), max_seq_length=6, max_width=500, newline='')
-        logger.debug(f'inference result: {log_msg}')
+            infer_time_ms = timer.elapsed_time_ns / 1e6
+            log_msg = {'inference_time_ms': infer_time_ms}
+            logger.debug(f'{log_msg}')
+            msg = self.make_msg(
+                'classification',
+                result,
+                meta={
+                    'timestamp': datetime.now().timestamp(),
+                    'inference_time_ms': infer_time_ms,
+                    'inputs': dict(meta_data),
+                },
+            )
+            self.send(f'{node}/vehicle', msg)
+            log_msg = pretty(asdict(msg), max_seq_length=6, max_width=500, newline='')
+            logger.debug(f'inference result: {log_msg}')
 
-        pred, confidence = max(result.items(), key=lambda x: x[1])
+            pred, confidence = max(result.items(), key=lambda x: x[1])
 
-        one_meta = self.combine_meta(meta_data)
-        logger.info(
-            f'detected {pred:<7} ({confidence:.4f}): '
-            f'truth={one_meta["label"]:<7}, '
-            f'D={one_meta["distance"]:<6.2f}m, '
-            f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, '
-            f'E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
-        )
-        log_msg = {
-            'pred_label': pred,
-            'confidence': confidence,
-            'true_label': one_meta['label'],
-            'distance': one_meta['distance'],
-            'energy_geo': one_meta['mean_geo_energy'],
-            'energy_mic': one_meta['mean_mic_energy'],
-        }
-        logger.info(f'{log_msg}')
+            one_meta = self.combine_meta(meta_data)
+            logger.info(
+                f'detected {pred:<7} ({confidence:.4f}): '
+                f'truth={one_meta["label"]:<7}, '
+                f'D={one_meta["distance"]:<6.2f}m, '
+                f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, '
+                f'E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
+            )
+            log_msg = {
+                'pred_label': pred,
+                'confidence': confidence,
+                'true_label': one_meta['label'],
+                'distance': one_meta['distance'],
+                'energy_geo': one_meta['mean_geo_energy'],
+                'energy_mic': one_meta['mean_mic_energy'],
+            }
+            logger.info(f'{log_msg}')
 
     def infer(self, samples):
         raise NotImplementedError()
