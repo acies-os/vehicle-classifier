@@ -131,6 +131,10 @@ class Classifier(Service):
         except queue.Empty:
             return
 
+        # if deactivated, drop the message
+        if self.service_states.get('deactivated', False):
+            return
+
         if any(topic.endswith(x) for x in ['geo', 'mic']):
             timestamp = int(msg.meta['timestamp'])
             array = np.array(msg.payload['samples'])
@@ -138,9 +142,14 @@ class Classifier(Service):
         else:
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
+    def log_activate_status(self):
+        if self.service_states.get('deactivated', False) and self._counter % 500 == 0:
+            logger.debug('currently deactivated, standing by')
+
     def run(self):
         while True:
             self._counter += 1
+            self.log_activate_status()
             self.handle_message()
             self.run_inference()
 
