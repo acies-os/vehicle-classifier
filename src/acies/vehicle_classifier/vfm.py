@@ -58,7 +58,7 @@ class VibroFM(Classifier):
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
-@click.option('--weight', help='Model weight', type=str)
+@click.option('--weight', help='Model weight', type=click.Path(exists=True))
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
 def main(mode, connect, listen, topic, namespace, proc_name, weight, model_args):
     # let the node swallows the args that it needs,

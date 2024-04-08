@@ -83,8 +83,8 @@ class DeepSense(Classifier):
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
-@click.option('--weight', help='Model weight', type=str)
-@click.option('--model-config', help='Model config yaml.', type=str)
+@click.option('--weight', help='Model weight', type=click.Path(exists=True))
+@click.option('--model-config', help='Model config yaml.', type=click.Path(exists=True))
 def main(mode, connect, listen, topic, namespace, proc_name, weight, model_config):
     init_logger(f'{namespace}_{proc_name}.log', get_logger='acies')
     z_conf = get_zconf(mode, connect, listen)
