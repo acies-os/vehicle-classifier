@@ -37,8 +37,11 @@ class VibroFM(Classifier):
     def infer(self, samples: dict[str, dict[int, np.ndarray]]):
         arrays = {k: self.concat(v) for k, v in samples.items()}
         arrays = {k.split('/')[1]: v for k, v in arrays.items()}
-        seismic_data = arrays['geo']
-        acoustic_data = arrays['mic']
+        try:
+            seismic_data = arrays['geo']
+            acoustic_data = arrays['mic']
+        except KeyError:
+            print(f'{arrays.keys()=}')
 
         seismic_data = seismic_data[::2].reshape(1, 1, 10, 20)
         acoustic_data = acoustic_data[::2].reshape(1, 1, 10, 1600)
