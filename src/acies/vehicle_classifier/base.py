@@ -150,15 +150,15 @@ class Classifier(Service):
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
     def log_activate_status(self):
-        if self.service_states.get('deactivated', False) and self._counter % 500 == 0:
+        if self.service_states.get('deactivated', False) and self._counter % 300 == 0:
             logger.debug('currently deactivated, standing by')
 
     def run(self):
         while True:
-            self._counter += 1
             self.log_activate_status()
             self.handle_message()
             self.run_inference()
+            self._counter += 1
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))

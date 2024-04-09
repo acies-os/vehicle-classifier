@@ -14,9 +14,14 @@ logger = logging.getLogger('acies.infer')
 
 
 class VibroFM(Classifier):
+    def __init__(self, modality, classifier_config_file, *args, **kwargs):
+        self._single_modality = modality
+        super().__init__(classifier_config_file, *args, **kwargs)
+
     def load_model(self, classifier_config_file: Path):
         freq_mae = True if 'mae' in self.proc_name else False
-        model = ModelForInference(classifier_config_file, freq_mae)
+        model = ModelForInference(classifier_config_file, freq_mae, modality=self._single_modality)
+
         logger.info(
             f'loaded model to cpu, '
             f'definition from {ModelForInference.__name__}, '
@@ -59,17 +64,21 @@ class VibroFM(Classifier):
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
 @click.option('--weight', help='Model weight', type=click.Path(exists=True))
+@click.option('--modality', type=str, help='Single modality: seismic, audio')
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
-def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight, model_args):
+def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight, modality, model_args):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
 
-    init_logger(f'{namespace}_{proc_name}.log', get_logger='acies')
+    init_logger(f'{namespace}_{proc_name.replace("/", "_")}.log', get_logger='acies')
     z_conf = get_zconf(mode, connect, listen)
+
+    logger.debug(f'{modality=}')
 
     # initialize the class
     clf = VibroFM(
+        modality=modality,
         conf=z_conf,
         mode=mode,
         connect=connect,
