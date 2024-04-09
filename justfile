@@ -4,18 +4,29 @@ default:
 
 vfm ns:
     LOGLEVEL=debug acies-vfm \
-    --connect unixsock-stream//tmp/acies-mic.sock \
-    --connect unixsock-stream//tmp/acies-geo.sock \
+    --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
     --namespace {{ns}} \
     --proc_name vfm \
     --topic {{ns}}/geo \
     --topic {{ns}}/mic \
     --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 
+deactivated-vfm ns:
+    LOGLEVEL=debug acies-vfm \
+    --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
+    --namespace {{ns}} \
+    --proc_name vfm \
+    --topic {{ns}}/geo \
+    --topic {{ns}}/mic \
+    --deactivated \
+    --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
+
 backup-vfm ns_carrier ns_primary:
     LOGLEVEL=debug acies-vfm \
-    --connect unixsock-stream//tmp/acies-mic.sock \
-    --connect unixsock-stream//tmp/acies-geo.sock \
+    --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
     --namespace {{ns_carrier}} \
     --proc_name "backup/{{ns_primary}}/vfm" \
     --topic {{ns_primary}}/geo \
@@ -25,8 +36,8 @@ backup-vfm ns_carrier ns_primary:
 
 backup-vfm-geo ns_carrier ns_primary:
     LOGLEVEL=debug acies-vfm \
-    --connect unixsock-stream//tmp/acies-mic.sock \
-    --connect unixsock-stream//tmp/acies-geo.sock \
+    --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
     --namespace {{ns_carrier}} \
     --proc_name "backup/{{ns_primary}}/vfm_geo" \
     --modality 'seismic' \
@@ -37,8 +48,8 @@ backup-vfm-geo ns_carrier ns_primary:
 
 backup-vfm-mic ns_carrier ns_primary:
     LOGLEVEL=debug acies-vfm \
-    --connect unixsock-stream//tmp/acies-mic.sock \
-    --connect unixsock-stream//tmp/acies-geo.sock \
+    --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
     --namespace {{ns_carrier}} \
     --proc_name "backup/{{ns_primary}}/vfm_mic" \
     --modality 'audio' \
@@ -49,8 +60,8 @@ backup-vfm-mic ns_carrier ns_primary:
 
 mae ns:
     LOGLEVEL=debug acies-vfm \
-    --connect unixsock-stream//tmp/acies-mic.sock \
-    --connect unixsock-stream//tmp/acies-geo.sock \
+    --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
     --namespace {{ns}} \
     --proc_name mae \
     --topic {{ns}}/geo \
@@ -59,8 +70,8 @@ mae ns:
 
 ds ns:
     LOGLEVEL=debug acies-ds \
-    --connect unixsock-stream//tmp/acies-mic.sock \
-    --connect unixsock-stream//tmp/acies-geo.sock \
+    --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
     --namespace {{ns}} \
     --proc_name ds \
     --topic {{ns}}/geo \
