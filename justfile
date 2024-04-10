@@ -5,7 +5,9 @@ default:
 clean:
     rm -f *.log
 
-vfm ns:
+ns := `hostname -s`
+
+vfm:
     LOGLEVEL=debug acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
@@ -16,7 +18,7 @@ vfm ns:
     --topic {{ns}}/mic \
     --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 
-deactivated-vfm ns:
+deactivated-vfm:
     LOGLEVEL=debug acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
@@ -28,24 +30,24 @@ deactivated-vfm ns:
     --deactivated \
     --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 
-backup-vfm ns_carrier ns_primary:
+backup-vfm ns_primary:
     LOGLEVEL=debug acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
     --connect tcp/10.8.0.3:7447 \
-    --namespace {{ns_carrier}} \
+    --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm" \
     --topic {{ns_primary}}/geo \
     --topic {{ns_primary}}/mic \
     --deactivated \
     --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 
-backup-vfm-geo ns_carrier ns_primary:
+backup-vfm-geo ns_primary:
     LOGLEVEL=debug acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
     --connect tcp/10.8.0.3:7447 \
-    --namespace {{ns_carrier}} \
+    --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm_geo" \
     --modality 'seismic' \
     --topic {{ns_primary}}/geo \
@@ -53,12 +55,12 @@ backup-vfm-geo ns_carrier ns_primary:
     --deactivated \
     --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_seismic_best.pt"
 
-backup-vfm-mic ns_carrier ns_primary:
+backup-vfm-mic ns_primary:
     LOGLEVEL=debug acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
     --connect tcp/10.8.0.3:7447 \
-    --namespace {{ns_carrier}} \
+    --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm_mic" \
     --modality 'audio' \
     --topic {{ns_primary}}/geo \
@@ -66,7 +68,7 @@ backup-vfm-mic ns_carrier ns_primary:
     --deactivated \
     --weight "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_audio_best.pt"
 
-mae ns:
+mae:
     LOGLEVEL=debug acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
@@ -77,7 +79,7 @@ mae ns:
     --topic {{ns}}/mic \
     --weight "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
 
-ds ns:
+ds:
     LOGLEVEL=debug acies-ds \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
