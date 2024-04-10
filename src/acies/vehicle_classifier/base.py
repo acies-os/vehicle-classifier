@@ -40,8 +40,6 @@ class Classifier(Service):
         self.pub_topic = self.ns_topic_str('vehicle')
         logger.info(f'classification result published to {self.pub_topic}')
 
-        self._counter = 0
-
         # your inference model
         classifier_config_file = Path(classifier_config_file)
         assert classifier_config_file.exists(), f'{classifier_config_file} does not exist'
@@ -134,7 +132,7 @@ class Classifier(Service):
 
     def handle_message(self):
         try:
-            topic, msg = self.msg_q.get(timeout=0.1)
+            topic, msg = self.msg_q.get_nowait()
         except queue.Empty:
             return
 
@@ -150,15 +148,14 @@ class Classifier(Service):
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
     def log_activate_status(self):
-        if self.service_states.get('deactivated', False) and self._counter % 300 == 0:
+        if self.service_states.get('deactivated', False):
             logger.debug('currently deactivated, standing by')
 
     def run(self):
-        while True:
-            self.log_activate_status()
-            self.handle_message()
-            self.run_inference()
-            self._counter += 1
+        self.sched_periodic(2, self.log_activate_status)
+        self.sched_periodic(0.1, self.handle_message)
+        self.sched_periodic(1, self.run_inference)
+        self._scheduler.run()
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
