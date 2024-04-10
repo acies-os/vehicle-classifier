@@ -2,6 +2,9 @@
 default:
     @just --list
 
+clean:
+    rm -f *.log
+
 vfm ns:
     LOGLEVEL=debug acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
