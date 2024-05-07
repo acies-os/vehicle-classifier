@@ -107,7 +107,7 @@ start:
     just {{ns}}
 
 end:
-    pkill -SIGINT 'acies'
+    pkill -SIGINT -f 'acies'
 
 rs1:
     nohup just vfm > nohup_vfm.log 2>&1 &
