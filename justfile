@@ -103,6 +103,12 @@ push-weight:
         rsync -azvhP models/demo2024* $i.dev:/ws/acies/vehicle-classifier/models
     end
 
+start:
+    just {{ns}}
+
+end:
+    pkill -SIGINT 'acies'
+
 rs1:
     nohup just vfm > nohup_vfm.log 2>&1 &
 
@@ -126,9 +132,3 @@ rs8:
 
 rs10:
     nohup just vfm > nohup_vfm.log 2>&1 &
-
-start:
-    just {{ns}}
-
-end:
-    pkill 'acies'
