@@ -104,28 +104,28 @@ push-weight:
     end
 
 rs1:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 rs2:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 rs3:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 rs5:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 rs6:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 rs7:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 rs8:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 rs10:
-    nohup just vfm &
+    nohup just vfm > nohup_vfm.log 2>&1 &
 
 start:
     just {{ns}}
