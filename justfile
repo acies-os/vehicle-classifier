@@ -111,24 +111,48 @@ end:
 
 rs1:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs2 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs1 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs1 > nohup_vfm_mic.log 2>&1 &
 
 rs2:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs3 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs2 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs2 > nohup_vfm_mic.log 2>&1 &
 
 rs3:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs5 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs3 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs3 > nohup_vfm_mic.log 2>&1 &
 
 rs5:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs6 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs5 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs5 > nohup_vfm_mic.log 2>&1 &
 
 rs6:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs7 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs6 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs6 > nohup_vfm_mic.log 2>&1 &
 
 rs7:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs8 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs7 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs7 > nohup_vfm_mic.log 2>&1 &
 
 rs8:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs10 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs8 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs8 > nohup_vfm_mic.log 2>&1 &
 
 rs10:
     nohup just vfm > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm rs1 > nohup_vfm.log 2>&1 &
+    nohup just backup-vfm-geo rs10 > nohup_vfm_geo.log 2>&1 &
+    nohup just backup-vfm-mic rs10 > nohup_vfm_mic.log 2>&1 &
