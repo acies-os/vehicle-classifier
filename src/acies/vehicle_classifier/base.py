@@ -56,12 +56,9 @@ class Classifier(Service):
         for topic, topic_data in meta_data.items():
             topic = topic.split('/')[1]
             for t_meta in topic_data.values():
-                result['label'] = t_meta['label']
-                result['distance'] = t_meta['distance']
-                if topic == 'geo':
-                    result['mean_geo_energy'].append(t_meta['energy'])
-                else:
-                    result['mean_mic_energy'].append(t_meta['energy'])
+                result['label'] = t_meta.get('label')
+                result['distance'] = t_meta.get('distance')
+                result[f'mean_{topic}_energy'].append(t_meta.get('energy', -1))
         result['mean_geo_energy'] = np.mean(result['mean_geo_energy'])
         result['mean_mic_energy'] = np.mean(result['mean_mic_energy'])
         return result
