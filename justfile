@@ -107,7 +107,7 @@ push-weight:
 start ip:
     just router_ip={{ip}} {{ns}}
 
-end:
+end ip:
     pkill -SIGINT -f 'acies'
 
 rs1:
