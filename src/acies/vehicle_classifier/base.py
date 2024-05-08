@@ -58,7 +58,7 @@ class Classifier(Service):
             for t_meta in topic_data.values():
                 result['label'] = t_meta.get('label')
                 result['distance'] = t_meta.get('distance')
-                result[f'mean_{topic}_energy'].append(t_meta.get('energy', -1))
+                result[f'mean_{topic}_energy'].append(t_meta.get('energy'))
         result['mean_geo_energy'] = np.mean(result['mean_geo_energy'])
         result['mean_mic_energy'] = np.mean(result['mean_mic_energy'])
         return result
@@ -103,10 +103,10 @@ class Classifier(Service):
             one_meta = self.combine_meta(meta_data)
             logger.info(
                 f'detected {pred:<7} ({confidence:.4f}): '
-                f'truth={one_meta["label"]:<7}, '
-                f'D={one_meta["distance"]:<6.2f}m, '
-                f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, '
-                f'E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
+                f'truth={one_meta.get("label", "no_label"):<7}, '
+                f'D={one_meta.get("distance", -1.0):<6.2f}m, '
+                f'E(geo)={one_meta.get("mean_geo_energy", -1.0):<8.2f}, '
+                f'E(mic)={one_meta.get("mean_mic_energy", -1.0):<8.2f}'
             )
             log_msg = {
                 'pred_label': pred,
