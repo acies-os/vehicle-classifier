@@ -6,6 +6,7 @@ clean:
     rm -f *.log
 
 ns := `hostname -s`
+router_ip := 10.8.0.3
 
 vfm-weight-2 := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 vfm-weight-geo := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_seismic_best.pt"
@@ -17,7 +18,7 @@ vfm:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect tcp/10.8.0.3:7447 \
+    --connect tcp/{{router_ip}}:7447 \
     --namespace {{ns}} \
     --proc_name vfm \
     --topic {{ns}}/geo \
@@ -28,7 +29,7 @@ deactivated-vfm:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect tcp/10.8.0.3:7447 \
+    --connect tcp/{{router_ip}}:7447 \
     --namespace {{ns}} \
     --proc_name vfm \
     --topic {{ns}}/geo \
@@ -40,7 +41,7 @@ backup-vfm ns_primary:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
-    --connect tcp/10.8.0.3:7447 \
+    --connect tcp/{{router_ip}}:7447 \
     --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm" \
     --topic {{ns_primary}}/geo \
@@ -52,7 +53,7 @@ backup-vfm-geo ns_primary:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
-    --connect tcp/10.8.0.3:7447 \
+    --connect tcp/{{router_ip}}:7447 \
     --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm_geo" \
     --modality 'seismic' \
@@ -65,7 +66,7 @@ backup-vfm-mic ns_primary:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
-    --connect tcp/10.8.0.3:7447 \
+    --connect tcp/{{router_ip}}:7447 \
     --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm_mic" \
     --modality 'audio' \
@@ -78,7 +79,7 @@ mae:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect tcp/10.8.0.3:7447 \
+    --connect tcp/{{router_ip}}:7447 \
     --namespace {{ns}} \
     --proc_name mae \
     --topic {{ns}}/geo \
@@ -89,7 +90,7 @@ ds:
     LOGLEVEL=debug rye run acies-ds \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect tcp/10.8.0.3:7447 \
+    --connect tcp/{{router_ip}}:7447 \
     --namespace {{ns}} \
     --proc_name ds \
     --topic {{ns}}/geo \
@@ -103,8 +104,8 @@ push-weight:
         rsync -azvhP models/demo2024* $i.dev:/ws/acies/vehicle-classifier/models
     end
 
-start:
-    just {{ns}}
+start ip:
+    just router_ip={{ip}} {{ns}}
 
 end:
     pkill -SIGINT -f 'acies'
