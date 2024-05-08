@@ -100,6 +100,9 @@ class Classifier(Service):
 
             pred, confidence = max(result.items(), key=lambda x: x[1])
 
+            assert pred is not None, f'pred={pred}, result={result}'
+            assert confidence is not None, f'conf={confidence}, result={result}'
+
             one_meta = self.combine_meta(meta_data)
             logger.info(
                 f'detected {pred:<7} ({confidence:.4f}): '
