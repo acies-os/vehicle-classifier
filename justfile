@@ -104,10 +104,10 @@ push-weight:
         rsync -azvhP models/demo2024* $i.dev:/ws/acies/vehicle-classifier/models
     end
 
-start ip:
-    just router_ip={{ip}} {{ns}}
+start:
+    just {{ns}}
 
-end ip:
+end:
     pkill -SIGINT -f 'acies'
 
 rs1:
