@@ -182,7 +182,7 @@ class Classifier(Service):
         else:
             console_msg += f'D={"n/a":<6}m, '
         console_msg += f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, E(mic)={one_meta["mean_mic_energy"]:<8.2f}, '
-        console_msg += f'latency={latency:<4.2f}s'
+        console_msg += f'L={latency:<4.2f}s'
         logger.info(console_msg)
 
     def infer(self, samples):
