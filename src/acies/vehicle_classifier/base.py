@@ -83,7 +83,12 @@ class Classifier(Service):
     def combine_meta(self, meta_data: dict[str, dict[int, dict]]):
         result = {'label': None, 'distance': None, 'mean_geo_energy': [], 'mean_mic_energy': []}
         for topic, topic_data in meta_data.items():
-            topic = topic.split('/')[1]
+            try:
+                topic = topic.split('/')[1]
+            except IndexError:
+                logger.error(f'invalid topic: {topic}')
+                logger.error(f'input: {meta_data}')
+                raise IndexError
             for t_meta in topic_data.values():
                 result['label'] = t_meta.get('label', self.service_states.get('ground_truth'))
                 result['distance'] = t_meta.get('distance')
