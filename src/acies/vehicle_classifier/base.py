@@ -1,5 +1,6 @@
 import logging
 import queue
+import threading
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -8,7 +9,7 @@ import click
 import numpy as np
 from acies.node.logging import init_logger
 from acies.node.net import common_options, get_zconf
-from acies.node.service import Service, pretty
+from acies.node.service import AciesMsg, Service, pretty
 from acies.vehicle_classifier.buffer import StreamBuffer
 from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
@@ -46,6 +47,29 @@ class Classifier(Service):
 
         self.modalities = []
         self.model = self.load_model(classifier_config_file)
+
+        self.twin_init()
+
+    def twin_init(self):
+        self.is_digital_twin = self.ctrl_topic.startswith('twin/')
+        if self.is_digital_twin:
+            logger.info('running as digital twin')
+        else:
+            logger.info('running as physical twin')
+
+        # digital twin ctrl parameters
+        self.service_states['model'] = 'acoustic'
+        self.service_states['sync_method'] = 'fixed_interval'
+        self.service_states['buff_len'] = 2
+
+        # dict that holds the latest msg from each topic, `self.sync_with_twin`
+        # will send messages in this dict to the digital twin
+        self._sync_latest: dict[str, AciesMsg] = {}
+        self._sync_latest_lock = threading.Lock()
+
+    def twin_sync_register(self, key, val):
+        with self._sync_latest_lock:
+            self._sync_latest[key] = val
 
     def load_model(self, path_to_weight: Path):
         """Load model from give path."""
@@ -132,9 +156,31 @@ class Classifier(Service):
         assert list(arrays.keys()) == sorted(arrays.keys())
         return np.concatenate(list(arrays.values()))
 
+    def _handle_tsync_msg(self, msg: AciesMsg):
+        raise NotImplementedError
+
+    def twin_sync(self):
+        if self.is_digital_twin:
+            return
+
+        to_sync: dict[str, AciesMsg] = {}
+        with self._sync_latest_lock:
+            keys_to_sync = list(self._sync_latest.keys())
+            for k in keys_to_sync:
+                to_sync[k] = self._sync_latest.pop(k)
+
+        for topic, msg in to_sync.items():
+            sync_topic = 'cp/dtwin_ctrl/ctrl'
+            payload = asdict(msg)
+            meta = {'topic': topic, 'sync_method': 'fixed_interval', 'timestamp': datetime.now().timestamp()}
+            sync_msg = self.make_msg('tsync', payload, meta)
+            self.send(sync_topic, sync_msg)
+            logger.debug(f'synced msg to digital twin: {sync_msg}')
+
     def handle_message(self):
         try:
             topic, msg = self.msg_q.get_nowait()
+            assert isinstance(msg, AciesMsg)
         except queue.Empty:
             return
 
@@ -146,6 +192,11 @@ class Classifier(Service):
             timestamp = int(msg.meta['timestamp'])
             array = np.array(msg.payload['samples'])
             self.buffer.add(topic, timestamp, array, msg.meta)
+            # stage the latest msg for each topic to sync with the twin
+            self.twin_sync_register(topic, msg)
+
+        elif msg.msg_type == 'tsync/reply':
+            self._handle_tsync_msg(msg)
         else:
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
@@ -157,6 +208,7 @@ class Classifier(Service):
         self.sched_periodic(2, self.log_activate_status)
         self.sched_periodic(0.1, self.handle_message)
         self.sched_periodic(1, self.run_inference)
+        self.sched_periodic(1, self.twin_sync)
         self._scheduler.run()
 
 
