@@ -160,7 +160,7 @@ class Classifier(Service):
                 self.send(f'{node}/vehicle', ensemble_msg)
                 log_msg = pretty(asdict(ensemble_msg), max_seq_length=6, max_width=500, newline='')
                 # logger.debug(f'ensemble result: {log_msg}')
-                one_meta = self.combine_meta(ensemble_meta)
+                one_meta = self.combine_meta(ensemble_meta['inputs'])
                 self._log_inference_result(pred, confidence, one_meta)
             except ValueError:
                 # not enough data
