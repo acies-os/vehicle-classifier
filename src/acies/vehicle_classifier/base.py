@@ -155,7 +155,7 @@ class Classifier(Service):
                 ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
                     msg.meta['timestamp'],
                     # give it an extra second to accommodate the fluctuation
-                    self.input_len * self.service_states['twin/buff_len'] + 1,
+                    self.input_len * (self.service_states['twin/buff_len'] - 1) + 1,
                     self.service_states['twin/buff_len'],
                 )
                 pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
