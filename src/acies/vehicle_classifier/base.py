@@ -175,7 +175,7 @@ class Classifier(Service):
             meta = {'topic': topic, 'sync_method': 'fixed_interval', 'timestamp': datetime.now().timestamp()}
             sync_msg = self.make_msg('tsync', payload, meta)
             self.send(sync_topic, sync_msg)
-            logger.debug(f'synced msg to {sync_topic}: {sync_msg}')
+            logger.debug(f'synced msg to {sync_topic}: {sync_msg} ({sync_msg.payload})')
 
     def handle_message(self):
         try:
