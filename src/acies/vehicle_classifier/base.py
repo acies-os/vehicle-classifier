@@ -82,6 +82,7 @@ class Classifier(Service):
 
     def combine_meta(self, meta_data: dict[str, dict[int, dict]]):
         result = {'label': None, 'distance': None, 'mean_geo_energy': [], 'mean_mic_energy': []}
+        oldest_key = 1e15
         for topic, topic_data in meta_data.items():
             try:
                 topic = topic.split('/')[1]
@@ -89,12 +90,15 @@ class Classifier(Service):
                 logger.error(f'invalid topic: {topic}')
                 logger.error(f'input: {meta_data}')
                 raise IndexError
-            for t_meta in topic_data.values():
+            for k, t_meta in topic_data.items():
                 result['label'] = t_meta.get('label', self.service_states.get('ground_truth'))
                 result['distance'] = t_meta.get('distance')
                 result[f'mean_{topic}_energy'].append(t_meta.get('energy'))
+                if k < oldest_key:
+                    oldest_key = k
         result['mean_geo_energy'] = np.mean(result['mean_geo_energy'])
         result['mean_mic_energy'] = np.mean(result['mean_mic_energy'])
+        result['oldest_timestamp'] = oldest_key
         return result
 
     def get_keys_per_node(self, modalities):
@@ -161,12 +165,13 @@ class Classifier(Service):
                 log_msg = pretty(asdict(ensemble_msg), max_seq_length=6, max_width=500, newline='')
                 # logger.debug(f'ensemble result: {log_msg}')
                 one_meta = self.combine_meta(ensemble_meta['inputs'])
-                self._log_inference_result(pred, confidence, one_meta)
+                self._log_inference_result(pred, confidence, one_meta, msg.meta['timestamp'])
             except ValueError:
                 # not enough data
                 return
 
-    def _log_inference_result(self, pred, confidence, one_meta):
+    def _log_inference_result(self, pred, confidence, one_meta, now):
+        latency = now - one_meta['oldest_timestamp']
         console_msg = f'detected {pred:<7} ({confidence:.4f}): '
         if one_meta['label'] is not None:
             console_msg += f'truth={one_meta["label"]:<7}, '
@@ -176,7 +181,8 @@ class Classifier(Service):
             console_msg += f'D={one_meta["distance"]:<6.2f}m, '
         else:
             console_msg += f'D={"n/a":<6}m, '
-        console_msg += f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
+        console_msg += f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, E(mic)={one_meta["mean_mic_energy"]:<8.2f}, '
+        console_msg += f'latency={latency:<4}s'
         logger.info(console_msg)
 
     def infer(self, samples):
