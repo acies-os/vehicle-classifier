@@ -2,6 +2,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
+from acies.node.service import AciesMsg
 
 
 @dataclass
@@ -59,3 +60,50 @@ class StreamBuffer:
                         data_meta[k][t] = sample_meta
                 return data, data_meta
         raise ValueError('not enough data')
+
+
+@dataclass
+class TemporalEnsembleBuff:
+    # temporal ensemble buffer size, control how many messages stored in the buffer
+    buff_size: int
+    _data: dict[int, AciesMsg] = field(default_factory=dict, repr=True)
+
+    def add(self, msg: AciesMsg):
+        k = int(msg.meta['timestamp'])
+        self._data[k] = msg
+        self._check_size()
+
+    def _check_size(self):
+        while len(self._data) > self.buff_size:
+            t = min(self._data.keys())
+            del self._data[t]
+
+    def ensemble(self, timestamp_now: int, ensemble_win_size: int, ensemble_size: int):
+        oldest = timestamp_now - ensemble_win_size
+        vals = [v for k, v in self._data.items() if k >= oldest]
+        if len(vals) >= ensemble_size:
+            result = self._soft_voting(vals)
+            # meta={
+            #         'timestamp': datetime.now().timestamp(),
+            #         'inference_time_ms': infer_time_ms,
+            #         'inputs': dict(meta_data),
+            #     },
+            ts = max(v.meta['timestamp'] for v in vals)
+            infer_time_ms = [v.meta['inference_time_ms'] for v in vals]
+            infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
+            inputs = {k: v for d in vals for k, v in d.meta['inputs'].items()}
+            meta = {'timestamp': ts, 'inference_time_ms': infer_time_ms, 'inputs': inputs}
+            return result, meta
+        else:
+            raise ValueError(f'not enough data: required {ensemble_size}, got {len(vals)}')
+
+    def _soft_voting(self, preds: list[AciesMsg]):
+        result = defaultdict(float)
+        for pred in preds:
+            for label, logit in pred.payload.items():
+                result[label] += logit
+        total = len(preds)
+        assert total >= 0
+        for label in result:
+            result[label] /= total
+        return result

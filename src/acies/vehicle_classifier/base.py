@@ -10,7 +10,7 @@ import numpy as np
 from acies.node.logging import init_logger
 from acies.node.net import common_options, get_zconf
 from acies.node.service import AciesMsg, Service, pretty
-from acies.vehicle_classifier.buffer import StreamBuffer
+from acies.vehicle_classifier.buffer import StreamBuffer, TemporalEnsembleBuff
 from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
 logger = logging.getLogger('acies.infer')
@@ -28,8 +28,15 @@ class Classifier(Service):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
+        # init digital twin
+        self.twin_init()
+        self.sync_interval = sync_interval
+
         # buffer 10s of data for each topic
         self.buffer = StreamBuffer(size=10)
+
+        # classification result ensemble buffer
+        self.ensemble_buff = TemporalEnsembleBuff(buff_size=10)
 
         # how many input messages the model needs to run inference once
         # each message contains 1s of data:
@@ -48,9 +55,6 @@ class Classifier(Service):
         self.modalities = []
         self.model = self.load_model(classifier_config_file)
 
-        self.twin_init()
-        self.sync_interval = sync_interval
-
     def twin_init(self):
         self.is_digital_twin = self.ctrl_topic.startswith('twin/')
         if self.is_digital_twin:
@@ -59,9 +63,9 @@ class Classifier(Service):
             logger.info('running as physical twin')
 
         # digital twin ctrl parameters
-        self.service_states['model'] = 'acoustic'
-        self.service_states['sync_method'] = 'fixed_interval'
-        self.service_states['buff_len'] = 2
+        self.service_states['twin/model'] = 'acoustic'
+        self.service_states['twin/sync_method'] = 'fixed_interval'
+        self.service_states['twin/buff_len'] = 2
 
         # dict that holds the latest msg from each topic, `self.sync_with_twin`
         # will send messages in this dict to the digital twin
@@ -100,16 +104,16 @@ class Classifier(Service):
             try:
                 samples, meta_data = self.buffer.get(keys, self.input_len)
             except ValueError:
+                # not enough data
                 return
 
+            # run inference and record execution time
             with TimeProfiler() as timer:
                 result = self.infer(samples)
-
-            result = {LABEL_TO_STR[k]: v for k, v in result.items()}
-
             infer_time_ms = timer.elapsed_time_ns / 1e6
-            log_msg = {'inference_time_ms': infer_time_ms}
-            logger.debug(f'{log_msg}')
+
+            # log inference result
+            result = {LABEL_TO_STR[k]: v for k, v in result.items()}
             msg = self.make_msg(
                 'classification',
                 result,
@@ -119,12 +123,11 @@ class Classifier(Service):
                     'inputs': dict(meta_data),
                 },
             )
-            self.send(f'{node}/vehicle', msg)
             log_msg = pretty(asdict(msg), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')
 
+            # log predicted label and confidence
             pred, confidence = max(result.items(), key=lambda x: x[1])
-
             one_meta = self.combine_meta(meta_data)
             log_msg = {
                 'pred_label': pred,
@@ -136,17 +139,38 @@ class Classifier(Service):
             }
             logger.info(f'{log_msg}')
 
-            console_msg = f'detected {pred:<7} ({confidence:.4f}): '
-            if one_meta['label'] is not None:
-                console_msg += f'truth={one_meta["label"]:<7}, '
-            else:
-                console_msg += f'truth={"n/a":<7}, '
-            if one_meta['distance'] is not None:
-                console_msg += f'D={one_meta["distance"]:<6.2f}m, '
-            else:
-                console_msg += f'D={"n/a":<6}m, '
-            console_msg += f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
-            logger.info(console_msg)
+            # perform temporal ensemble
+            self.ensemble_buff.add(msg)
+
+            try:
+                ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
+                    msg.meta['timestamp'],
+                    # give it an extra second to accommodate the fluctuation
+                    self.input_len * self.service_states['twin/buff_len'] + 1,
+                    self.service_states['twin/buff_len'],
+                )
+                pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
+                one_meta = self.combine_meta(ensemble_meta)
+                self._log_inference_result(pred, confidence, one_meta)
+                # publish ensemble classification result
+                ensemble_msg = self.make_msg('classification', ensemble_result, meta=ensemble_meta)
+                self.send(f'{node}/vehicle', ensemble_msg)
+            except ValueError:
+                # not enough data
+                return
+
+    def _log_inference_result(self, pred, confidence, one_meta):
+        console_msg = f'detected {pred:<7} ({confidence:.4f}): '
+        if one_meta['label'] is not None:
+            console_msg += f'truth={one_meta["label"]:<7}, '
+        else:
+            console_msg += f'truth={"n/a":<7}, '
+        if one_meta['distance'] is not None:
+            console_msg += f'D={one_meta["distance"]:<6.2f}m, '
+        else:
+            console_msg += f'D={"n/a":<6}m, '
+        console_msg += f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, E(mic)={one_meta["mean_mic_energy"]:<8.2f}'
+        logger.info(console_msg)
 
     def infer(self, samples):
         raise NotImplementedError()
