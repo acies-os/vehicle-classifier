@@ -24,7 +24,7 @@ LABEL_TO_STR = {
 
 
 class Classifier(Service):
-    def __init__(self, classifier_config_file, *args, **kwargs):
+    def __init__(self, sync_interval, classifier_config_file, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
@@ -49,6 +49,7 @@ class Classifier(Service):
         self.model = self.load_model(classifier_config_file)
 
         self.twin_init()
+        self.sync_interval = sync_interval
 
     def twin_init(self):
         self.is_digital_twin = self.ctrl_topic.startswith('twin/')
@@ -175,7 +176,7 @@ class Classifier(Service):
             meta = {'topic': topic, 'sync_method': 'fixed_interval', 'timestamp': datetime.now().timestamp()}
             sync_msg = self.make_msg('tsync', payload, meta)
             self.send(sync_topic, sync_msg)
-            logger.debug(f'synced msg to {sync_topic}: {sync_msg} ({sync_msg.payload})')
+            logger.debug(f'synced msg to {sync_topic}: {sync_msg}')
 
     def handle_message(self):
         try:
@@ -208,15 +209,16 @@ class Classifier(Service):
         self.sched_periodic(2, self.log_activate_status)
         self.sched_periodic(0.1, self.handle_message)
         self.sched_periodic(1, self.run_inference)
-        self.sched_periodic(1, self.twin_sync)
+        self.sched_periodic(self.sync_interval, self.twin_sync)
         self._scheduler.run()
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
 @click.option('--weight', help='Model weight', type=str)
+@click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
-def main(mode, connect, listen, topic, namespace, proc_name, weight, model_args):
+def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interval, model_args):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
@@ -226,6 +228,7 @@ def main(mode, connect, listen, topic, namespace, proc_name, weight, model_args)
 
     # initialize the class
     clf = Classifier(
+        sync_interval=sync_interval,
         conf=z_conf,
         mode=mode,
         connect=connect,
