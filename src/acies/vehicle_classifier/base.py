@@ -217,9 +217,7 @@ class Classifier(Service):
 @common_options
 @click.option('--weight', help='Model weight', type=str)
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
-@click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
-def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interval, model_args):
 def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interval, model_args):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
