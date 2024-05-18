@@ -112,4 +112,4 @@ class TemporalEnsembleBuff:
         assert total >= 0
         for label in result:
             result[label] /= total
-        return result
+        return dict(result)
