@@ -24,7 +24,7 @@ LABEL_TO_STR = {
 
 
 class Classifier(Service):
-    def __init__(self, sync_interval, classifier_config_file, *args, **kwargs):
+    def __init__(self, classifier_config_file, sync_interval, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
@@ -217,7 +217,9 @@ class Classifier(Service):
 @common_options
 @click.option('--weight', help='Model weight', type=str)
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
+@click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
+def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interval, model_args):
 def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interval, model_args):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
@@ -228,6 +230,7 @@ def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interv
 
     # initialize the class
     clf = Classifier(
+        classifier_config_file=weight,
         sync_interval=sync_interval,
         conf=z_conf,
         mode=mode,
@@ -236,7 +239,6 @@ def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interv
         topic=topic,
         namespace=namespace,
         proc_name=proc_name,
-        classifier_config_file=weight,
     )
 
     # start
