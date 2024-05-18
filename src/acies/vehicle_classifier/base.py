@@ -138,6 +138,7 @@ class Classifier(Service):
                 'energy_mic': one_meta['mean_mic_energy'],
             }
             logger.info(f'{log_msg}')
+            self._log_inference_result(pred, confidence, one_meta)
 
             # perform temporal ensemble
             self.ensemble_buff.add(msg)
@@ -150,11 +151,12 @@ class Classifier(Service):
                     self.service_states['twin/buff_len'],
                 )
                 pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
-                one_meta = self.combine_meta(ensemble_meta)
-                self._log_inference_result(pred, confidence, one_meta)
                 # publish ensemble classification result
                 ensemble_msg = self.make_msg('classification', ensemble_result, meta=ensemble_meta)
                 self.send(f'{node}/vehicle', ensemble_msg)
+                logger.debug(
+                    f'ensemble result: {pretty(asdict(ensemble_msg), max_seq_length=6, max_width=500, newline="")}'
+                )
             except ValueError:
                 # not enough data
                 return
