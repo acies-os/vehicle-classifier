@@ -153,6 +153,7 @@ class Classifier(Service):
                 pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
                 # publish ensemble classification result
                 ensemble_msg = self.make_msg('classification', ensemble_result, meta=ensemble_meta)
+                logger.debug(f'============>: {ensemble_msg}')
                 self.send(f'{node}/vehicle', ensemble_msg)
                 log_msg = pretty(asdict(ensemble_msg), max_seq_length=6, max_width=500, newline='')
                 logger.debug(f'ensemble result: {log_msg}')
