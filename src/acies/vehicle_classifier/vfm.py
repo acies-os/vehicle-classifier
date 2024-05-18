@@ -69,8 +69,9 @@ class VibroFM(Classifier):
 @common_options
 @click.option('--weight', help='Model weight', type=click.Path(exists=True))
 @click.option('--modality', type=str, help='Single modality: seismic, audio')
+@click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
-def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight, modality, model_args):
+def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight, modality, model_args, sync_interval):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
@@ -92,6 +93,7 @@ def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight
         proc_name=proc_name,
         deactivated=deactivated,
         classifier_config_file=weight,
+        sync_interval=sync_interval,
     )
 
     # start
