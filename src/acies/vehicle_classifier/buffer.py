@@ -94,8 +94,10 @@ class TemporalEnsembleBuff:
             ts = max(v.meta['timestamp'] for v in vals)
             infer_time_ms = [v.meta['inference_time_ms'] for v in vals]
             infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
-            logger.debug(f'----> {vals}')
-            inputs = {k: v for d in vals for k, v in d.meta['inputs'].items()}
+            inputs = defaultdict(dict)
+            for d in vals:
+                for k, v in d.meta['inputs'].items():
+                    inputs[k].update(v)
             meta = {'timestamp': ts, 'inference_time_ms': infer_time_ms, 'inputs': inputs}
             return result, meta
         else:
