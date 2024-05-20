@@ -23,6 +23,16 @@ LABEL_TO_STR = {
 }
 
 
+def get_twin_topic(topic: str) -> str:
+    """Convert between physical and digital twin topic."""
+    if topic.startswith('twin/'):
+        # twin/ns1/n1/ctrl -> ns1/n1/ctrl
+        return topic.removeprefix('twin/')
+    else:
+        # ns1/n1/ctrl -> twin/ns1/n1/ctrl
+        return 'twin/' + topic
+
+
 class Classifier(Service):
     def __init__(self, classifier_config_file, sync_interval, *args, **kwargs):
         # pass other args to parent type
@@ -72,9 +82,9 @@ class Classifier(Service):
         self._sync_latest: dict[str, AciesMsg] = {}
         self._sync_latest_lock = threading.Lock()
 
-    def twin_sync_register(self, key, val):
+    def twin_sync_register(self, topic, msg):
         with self._sync_latest_lock:
-            self._sync_latest[key] = val
+            self._sync_latest[topic] = msg
 
     def load_model(self, path_to_weight: Path):
         """Load model from give path."""
@@ -208,7 +218,8 @@ class Classifier(Service):
                 to_sync[k] = self._sync_latest.pop(k)
 
         for topic, msg in to_sync.items():
-            sync_topic = 'cp/dtwin_ctrl/ctrl'
+            # sync_topic = 'cp/dtwin_ctrl/ctrl'
+            sync_topic = get_twin_topic(topic)
             payload = asdict(msg)
             meta = {'topic': topic, 'sync_method': 'fixed_interval', 'timestamp': datetime.now().timestamp()}
             sync_msg = self.make_msg('tsync', payload, meta)
