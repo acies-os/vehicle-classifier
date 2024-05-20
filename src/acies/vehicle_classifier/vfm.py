@@ -36,7 +36,7 @@ class VibroFM(Classifier):
 
     def infer(self, samples: dict[str, dict[int, np.ndarray]]):
         arrays = {k: self.concat(v) for k, v in samples.items()}
-        arrays = {k.split('/')[1]: v for k, v in arrays.items()}
+        arrays = {k.split('/')[-1]: v for k, v in arrays.items()}
 
         # data = {'shake': {'audio': acoustic_data, 'seismic': seismic_data}}
         data = {'shake': {}}
@@ -70,13 +70,30 @@ class VibroFM(Classifier):
 @click.option('--weight', help='Model weight', type=click.Path(exists=True))
 @click.option('--modality', type=str, help='Single modality: seismic, audio')
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
+@click.option('--twin-model', help='Model used in the digital twin', type=str, default='multimodal')
+@click.option('--twin-buff-len', help='Buffer length in the digital twin', type=int, default=2)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
-def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight, modality, model_args, sync_interval):
+def main(
+    mode,
+    connect,
+    listen,
+    topic,
+    namespace,
+    proc_name,
+    deactivated,
+    weight,
+    modality,
+    model_args,
+    sync_interval,
+    twin_model,
+    twin_buff_len,
+):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
 
-    init_logger(f'{namespace}_{proc_name.replace("/", "_")}.log', get_logger='acies')
+    log_file = f'{namespace.replace("/", "_")}_{proc_name.replace("/", "_")}.log'
+    init_logger(log_file, get_logger='acies')
     z_conf = get_zconf(mode, connect, listen)
 
     logger.debug(f'{modality=}')
@@ -85,6 +102,8 @@ def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight
     clf = VibroFM(
         modality=modality,
         conf=z_conf,
+        twin_model=twin_model,
+        twin_buff_len=twin_buff_len,
         mode=mode,
         connect=connect,
         listen=listen,

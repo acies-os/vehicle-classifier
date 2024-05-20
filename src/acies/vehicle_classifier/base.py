@@ -34,12 +34,12 @@ def get_twin_topic(topic: str) -> str:
 
 
 class Classifier(Service):
-    def __init__(self, classifier_config_file, sync_interval, *args, **kwargs):
+    def __init__(self, classifier_config_file, twin_model, twin_buff_len, sync_interval, *args, **kwargs):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
         # init digital twin
-        self.twin_init()
+        self.twin_init(twin_model, twin_buff_len)
         self.sync_interval = sync_interval
 
         # buffer 10s of data for each topic
@@ -65,7 +65,7 @@ class Classifier(Service):
         self.modalities = []
         self.model = self.load_model(classifier_config_file)
 
-    def twin_init(self):
+    def twin_init(self, twin_model, twin_buff_len):
         self.is_digital_twin = self.ctrl_topic.startswith('twin/')
         if self.is_digital_twin:
             logger.info('running as digital twin')
@@ -73,9 +73,9 @@ class Classifier(Service):
             logger.info('running as physical twin')
 
         # digital twin ctrl parameters
-        self.service_states['twin/model'] = 'acoustic'
+        self.service_states['twin/model'] = twin_model
         self.service_states['twin/sync_method'] = 'fixed_interval'
-        self.service_states['twin/buff_len'] = 2
+        self.service_states['twin/buff_len'] = twin_buff_len
 
         # dict that holds the latest msg from each topic, `self.sync_with_twin`
         # will send messages in this dict to the digital twin
@@ -95,7 +95,7 @@ class Classifier(Service):
         oldest_key = 1e15
         for topic, topic_data in meta_data.items():
             try:
-                topic = topic.split('/')[1]
+                topic = topic.split('/')[-1]
             except IndexError:
                 logger.error(f'invalid topic: {topic}')
                 logger.error(f'input: {meta_data}')
@@ -113,7 +113,11 @@ class Classifier(Service):
 
     def get_keys_per_node(self, modalities):
         keys = list(self.buffer._data.keys())
-        nodes = set(x.split('/')[0] for x in keys)
+        nodes = set()
+        for k in keys:
+            for m in modalities:
+                k = k.removesuffix(m).rstrip('/')
+            nodes.add(k)
         ns_keys = {n: [f'{n}/{m}' for m in modalities] for n in nodes}
         return ns_keys
 
@@ -162,13 +166,18 @@ class Classifier(Service):
             self.ensemble_buff.add(msg)
 
             try:
+                buff_len = int(self.service_states['twin/buff_len'])
                 ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
                     msg.meta['timestamp'],
                     # give it an extra second to accommodate the fluctuation
-                    self.input_len * (self.service_states['twin/buff_len'] - 1) + 1,
-                    self.service_states['twin/buff_len'],
+                    self.input_len * (buff_len - 1) + 1,
+                    buff_len,
                 )
                 pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
+                if self.is_digital_twin:
+                    for k, v in self.service_states.items():
+                        if k.startswith('twin/'):
+                            ensemble_meta[k] = v
                 # publish ensemble classification result
                 ensemble_msg = self.make_msg('classification', ensemble_result, meta=ensemble_meta)
                 self.send(f'{node}/vehicle', ensemble_msg)
@@ -266,8 +275,22 @@ class Classifier(Service):
 @common_options
 @click.option('--weight', help='Model weight', type=str)
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
+@click.option('--twin-model', help='Model used in the digital twin', type=str, default='multimodal')
+@click.option('--twin-buff-len', help='Buffer length in the digital twin', type=int, default=2)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
-def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interval, model_args):
+def main(
+    mode,
+    connect,
+    listen,
+    topic,
+    namespace,
+    proc_name,
+    weight,
+    sync_interval,
+    model_args,
+    twin_model,
+    twin_buff_len,
+):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
@@ -279,6 +302,8 @@ def main(mode, connect, listen, topic, namespace, proc_name, weight, sync_interv
     clf = Classifier(
         classifier_config_file=weight,
         sync_interval=sync_interval,
+        twin_model=twin_model,
+        twin_buff_len=twin_buff_len,
         conf=z_conf,
         mode=mode,
         connect=connect,
