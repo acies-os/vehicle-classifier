@@ -25,6 +25,15 @@ vfm:
     --topic {{ns}}/mic \
     --weight {{vfm-weight-2}}
 
+twin-vfm:
+    LOGLEVEL=debug rye run acies-vfm \
+    --connect tcp/{{router_ip}}:7447 \
+    --namespace twin/{{ns}} \
+    --proc_name twin_vfm \
+    --topic twin/{{ns}}/geo \
+    --topic twin/{{ns}}/mic \
+    --weight {{vfm-weight-2}}
+
 deactivated-vfm:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
