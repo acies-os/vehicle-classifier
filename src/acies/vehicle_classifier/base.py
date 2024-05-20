@@ -220,11 +220,12 @@ class Classifier(Service):
         for topic, msg in to_sync.items():
             # sync_topic = 'cp/dtwin_ctrl/ctrl'
             sync_topic = get_twin_topic(topic)
-            payload = asdict(msg)
-            meta = {'topic': topic, 'sync_method': 'fixed_interval', 'timestamp': datetime.now().timestamp()}
-            sync_msg = self.make_msg('tsync', payload, meta)
-            self.send(sync_topic, sync_msg)
-            logger.debug(f'synced msg to {sync_topic}: {sync_msg}')
+            # add twin sync meta data including the sync method, timestamp, and msg_id
+            msg.meta['twin/sync_method'] = self.service_states['twin/sync_method']
+            msg.meta['twin/sync_timestamp'] = datetime.now().timestamp()
+            msg.meta['twin/sync_msg_id'] = self.new_msg_id()
+            self.send(sync_topic, msg)
+            logger.debug(f'synced msg to {sync_topic}: {msg}')
 
     def handle_message(self):
         try:
@@ -244,7 +245,7 @@ class Classifier(Service):
             # stage the latest msg for each topic to sync with the twin
             self.twin_sync_register(topic, msg)
 
-        elif msg.msg_type == 'tsync/reply':
+        elif msg.msg_type == 'tsync':
             self._handle_tsync_msg(msg)
         else:
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
