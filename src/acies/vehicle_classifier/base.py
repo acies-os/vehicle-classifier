@@ -215,9 +215,6 @@ class Classifier(Service):
         assert list(arrays.keys()) == sorted(arrays.keys())
         return np.concatenate(list(arrays.values()))
 
-    def _handle_tsync_msg(self, msg: AciesMsg):
-        raise NotImplementedError
-
     def twin_sync(self):
         if self.is_digital_twin:
             return
@@ -255,9 +252,6 @@ class Classifier(Service):
             self.buffer.add(topic, timestamp, array, msg.meta)
             # stage the latest msg for each topic to sync with the twin
             self.twin_sync_register(topic, msg)
-
-        elif msg.msg_type == 'tsync':
-            self._handle_tsync_msg(msg)
         else:
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
