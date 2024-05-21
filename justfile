@@ -25,16 +25,21 @@ vfm:
     --topic {{ns}}/mic \
     --weight {{vfm-weight-2}}
 
-twin-vfm:
+# start a digital twin of the VFM classifier
+twin-vfm twin-model="multimodal" twin-buff-len="2":
     LOGLEVEL=debug rye run acies-vfm \
     --connect tcp/{{router_ip}}:7447 \
     --namespace twin/{{ns}} \
-    --twin-model multimodal \
-    --twin-buff-len 2 \
-    --proc_name vfm \
+    --twin-model {{twin-model}} \
+    --twin-buff-len {{twin-buff-len}} \
+    --proc_name vfm_{{twin-model}}_{{twin-buff-len}} \
     --topic twin/{{ns}}/geo \
     --topic twin/{{ns}}/mic \
-    --weight {{vfm-weight-2}}
+    --weight {{ if twin-model == "multimodal" { vfm-weight-2 } else if twin-model == "seismic" { vfm-weight-geo } else if twin-model == "acoustic" { vfm-weight-mic } else { vfm-weight-2 } }}
+
+# start a digital twin of the VFM classifier as background process
+nohup-twin-vfm twin-model="multimodal" twin-buff-len="2":
+    nohup just ns={{ns}} twin-vfm {{twin-model}} {{twin-buff-len}} > /dev/null 2>&1 &
 
 deactivated-vfm:
     LOGLEVEL=debug rye run acies-vfm \
