@@ -72,7 +72,10 @@ class TemporalEnsembleBuff:
     _data: dict[int, AciesMsg] = field(default_factory=dict, repr=True)
 
     def add(self, msg: AciesMsg):
-        k = int(msg.meta['timestamp'])
+        # ts is of the form: {'twin/rs10/geo': {1716260262: {...}}}
+        ts = msg.meta['inputs']
+        # use the oldest input message timestamp as the key
+        k = min([int(t) for v in ts.values() for t in v])
         self._data[k] = msg
         self._check_size()
 

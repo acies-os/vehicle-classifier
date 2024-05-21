@@ -46,7 +46,7 @@ class Classifier(Service):
         self.buffer = StreamBuffer(size=10)
 
         # classification result ensemble buffer
-        self.ensemble_buff = TemporalEnsembleBuff(buff_size=10)
+        self.ensemble_buff = TemporalEnsembleBuff(buff_size=20)
 
         # how many input messages the model needs to run inference once
         # each message contains 1s of data:
@@ -167,10 +167,11 @@ class Classifier(Service):
 
             try:
                 buff_len = int(self.service_states['twin/buff_len'])
+                min_input_t = min([min(v.keys()) for v in msg.meta['inputs'].values()])
                 ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
-                    msg.meta['timestamp'],
+                    min_input_t,
                     # give it an extra second to accommodate the fluctuation
-                    self.input_len * (buff_len - 1) + 1,
+                    self.input_len * (buff_len - 1),
                     buff_len,
                 )
                 pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
@@ -187,6 +188,7 @@ class Classifier(Service):
                 self._log_inference_result(pred, confidence, one_meta, msg.meta['timestamp'])
             except ValueError:
                 # not enough data
+                logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
                 return
 
     def _log_inference_result(self, pred, confidence, one_meta, now):
