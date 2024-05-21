@@ -174,5 +174,5 @@ rs10:
     nohup just backup-vfm-geo rs10 > nohup_vfm_geo.log 2>&1 &
     nohup just backup-vfm-mic rs10 > nohup_vfm_mic.log 2>&1 &
 
-tail-detected log:
-    tail -f {{log}} | grep detected
+tail log filter="detected":
+    tail -f {{log}} | grep "{{filter}}"
