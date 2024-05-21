@@ -249,6 +249,16 @@ class Classifier(Service):
         if any(topic.endswith(x) for x in ['geo', 'mic']):
             timestamp = int(msg.meta['timestamp'])
             array = np.array(msg.payload['samples'])
+            mod = 'geo' if topic.endswith('geo') else 'mic'
+
+            # filter out low energy messages
+            energy = np.std(array)
+            thresh = self.service_states.get(f'{mod}_energy_thresh', 0.0)
+            if energy < thresh:
+                logger.debug(f'energy below threshold: {energy} < {thresh} at {topic}; drop message: {msg}')
+                return
+            msg.meta['energy'] = energy
+
             self.buffer.add(topic, timestamp, array, msg.meta)
             # stage the latest msg for each topic to sync with the twin
             self.twin_sync_register(topic, msg)

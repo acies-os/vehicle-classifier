@@ -59,7 +59,7 @@ class StreamBuffer:
                             del self._timestamps[t]
 
                         data[k][t] = sample
-                        sample_meta['energy'] = np.std(sample)
+                        # sample_meta['energy'] = np.std(sample)
                         data_meta[k][t] = sample_meta
                 return dict(data), dict(data_meta)
         raise ValueError('not enough data')
