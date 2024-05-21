@@ -6,7 +6,7 @@ clean:
     rm -f *.log
 
 ns := `hostname -s`
-router_ip := "10.8.0.3"
+router_ip := env_var_or_default('ZRIP', '10.8.0.3')
 
 vfm-weight-2 := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 vfm-weight-geo := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_seismic_best.pt"
