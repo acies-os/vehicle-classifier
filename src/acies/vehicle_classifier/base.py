@@ -226,7 +226,10 @@ class Classifier(Service):
             for k in keys_to_sync:
                 to_sync[k] = self._sync_latest.pop(k)
 
-        for topic, msg in to_sync.items():
+        for topic, _msg in to_sync.items():
+            # deepcopy the msg to avoid modification
+            msg = AciesMsg(**asdict(_msg))
+
             # sync_topic = 'cp/dtwin_ctrl/ctrl'
             sync_topic = get_twin_topic(topic)
             # add twin sync meta data including the sync method, timestamp, and msg_id
