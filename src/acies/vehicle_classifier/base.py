@@ -194,19 +194,24 @@ class Classifier(Service):
                 logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
                 return
 
-    def _log_inference_result(self, pred, confidence, one_meta, now):
+    def _log_inference_result(self, pred, confidence, one_meta, now, ensemble_size=None):
         latency = now - one_meta['oldest_timestamp']
         console_msg = f'detected {pred:<7} ({confidence:.4f}): '
+
+        # predicted label, confidence and ground truth label if available
         if one_meta['label'] is not None:
-            console_msg += f'truth={one_meta["label"]:<7}, '
+            console_msg += f'truth={one_meta["label"]:<7} '
         else:
-            console_msg += f'truth={"n/a":<7}, '
+            console_msg += f'truth={"n/a":<7} '
+
         if one_meta['distance'] is not None:
-            console_msg += f'D={one_meta["distance"]:<6.2f}m, '
-        else:
-            console_msg += f'D={"n/a":<6}m, '
-        console_msg += f'E(geo)={one_meta["mean_geo_energy"]:<8.2f}, E(mic)={one_meta["mean_mic_energy"]:<8.2f}, '
+            console_msg += f'D={one_meta["distance"]:<6.2f}m '
+        # else:
+        #     console_msg += f'D={"n/a":<6}m, '
+        console_msg += f'E(geo)={one_meta["mean_geo_energy"]:<8.2f} E(mic)={one_meta["mean_mic_energy"]:<8.2f} '
         console_msg += f'L={latency:<4.2f}s'
+        if ensemble_size is not None:
+            console_msg += f' Ensemble={ensemble_size}'
         logger.info(console_msg)
 
     def infer(self, samples):

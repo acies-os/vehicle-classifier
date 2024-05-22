@@ -101,7 +101,12 @@ class TemporalEnsembleBuff:
             for d in vals:
                 for k, v in d.meta['inputs'].items():
                     inputs[k].update(v)
-            meta = {'timestamp': ts, 'inference_time_ms': infer_time_ms, 'inputs': dict(inputs)}
+            meta = {
+                'timestamp': ts,
+                'inference_time_ms': infer_time_ms,
+                'inputs': dict(inputs),
+                'ensemble_size': len(vals),
+            }
             return result, meta
         else:
             raise ValueError(f'not enough data: required {ensemble_size}, got {len(vals)}')
