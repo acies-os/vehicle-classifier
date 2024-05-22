@@ -186,7 +186,9 @@ class Classifier(Service):
                 log_msg = pretty(asdict(ensemble_msg), max_seq_length=6, max_width=500, newline='')
                 # logger.debug(f'ensemble result: {log_msg}')
                 one_meta = self.combine_meta(ensemble_meta['inputs'])
-                self._log_inference_result(pred, confidence, one_meta, one_meta['timestamp'])
+                # use current message timestamp as now
+                now = msg.meta['timestamp']
+                self._log_inference_result(pred, confidence, one_meta, now)
             except ValueError:
                 # not enough data
                 logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
