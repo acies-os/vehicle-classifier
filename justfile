@@ -198,7 +198,7 @@ rs10:
     nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs10 > nohup_vfm_geo.log 2>&1 &
     nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs10 > nohup_vfm_mic.log 2>&1 &
 
-# follow and filter the tail of the given log
+# continuously monitor the <log> file for <pat>
 tail log filter="detected":
     tail -f {{log}} | grep "{{filter}}"
 
@@ -215,3 +215,7 @@ alias k := kill
 # kill a process by name
 kill pat:
     pkill -f {{pat}} -SIGINT
+
+# list all processes matching the pattern
+ps pat="acies-vfm":
+    ps aux | grep {{pat}}
