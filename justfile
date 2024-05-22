@@ -210,10 +210,16 @@ launch-twins-latency:
     nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 4 >/dev/null 2>&1 &
     nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 5 >/dev/null 2>&1 &
 
+# start digital twins with different modalities
+launch-twins-modalities:
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 1 >/dev/null 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm seismic 1 >/dev/null 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm acoustic 1 >/dev/null 2>&1 &
+
 alias k := kill
 
 # kill a process by name
-kill pat:
+kill pat="acies-vfm":
     pkill -f {{pat}} -SIGINT
 
 # list all processes matching the pattern
