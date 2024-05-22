@@ -69,6 +69,7 @@ class Classifier(Service):
         self.is_digital_twin = self.ctrl_topic.startswith('twin/')
         if self.is_digital_twin:
             logger.info('running as digital twin')
+            self.service_states['enable_heartbeat'] = False
         else:
             logger.info('running as physical twin')
 
