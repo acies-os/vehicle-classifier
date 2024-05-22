@@ -2,23 +2,30 @@
 default:
     @just --list
 
+# delete all *.log files
 clean:
     rm -f *.log
 
+# namespace (hostname) of the node
 ns := `hostname -s`
-router_ip := env_var_or_default('ZRIP', 'tcp/10.8.0.3:7447')
 
+# Zenoh Router endpoint
+zrouter := 'tcp/10.8.0.3:7447'
+
+# VibroFM weights
 vfm-weight-2 := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 vfm-weight-geo := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_seismic_best.pt"
 vfm-weight-mic := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_audio_best.pt"
 
+# FreqMAE weights
 mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
 
+# launch a VFM classifier
 vfm:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace {{ns}} \
     --proc_name vfm \
     --topic {{ns}}/geo \
@@ -28,7 +35,7 @@ vfm:
 # start a digital twin of the VFM classifier
 twin-vfm twin-model="multimodal" twin-buff-len="2":
     LOGLEVEL=debug rye run acies-vfm \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace twin/{{ns}} \
     --twin-model {{twin-model}} \
     --twin-buff-len {{twin-buff-len}} \
@@ -39,13 +46,14 @@ twin-vfm twin-model="multimodal" twin-buff-len="2":
 
 # start a digital twin of the VFM classifier as background process
 nohup-twin-vfm twin-model="multimodal" twin-buff-len="2":
-    nohup just ns={{ns}} twin-vfm {{twin-model}} {{twin-buff-len}} > /dev/null 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm {{twin-model}} {{twin-buff-len}} > /dev/null 2>&1 &
 
+# launch a VFM classifier in deactivated mode
 deactivated-vfm:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace {{ns}} \
     --proc_name vfm \
     --topic {{ns}}/geo \
@@ -53,11 +61,12 @@ deactivated-vfm:
     --deactivated \
     --weight {{vfm-weight-2}}
 
+# launch a backup VFM classifier
 backup-vfm ns_primary:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm" \
     --topic {{ns_primary}}/geo \
@@ -65,11 +74,12 @@ backup-vfm ns_primary:
     --deactivated \
     --weight {{vfm-weight-2}}
 
+# launch a backup VFM-geo classifier
 backup-vfm-geo ns_primary:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm_geo" \
     --modality 'seismic' \
@@ -78,11 +88,12 @@ backup-vfm-geo ns_primary:
     --deactivated \
     --weight {{vfm-weight-geo}}
 
+# launch a backup VFM-mic classifier
 backup-vfm-mic ns_primary:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns_primary}}_acies-geo.sock \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace {{ns}} \
     --proc_name "backup/{{ns_primary}}/vfm_mic" \
     --modality 'audio' \
@@ -91,22 +102,24 @@ backup-vfm-mic ns_primary:
     --deactivated \
     --weight {{vfm-weight-mic}}
 
+# launch a FreqMAE classifier
 mae:
     LOGLEVEL=debug rye run acies-vfm \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace {{ns}} \
     --proc_name mae \
     --topic {{ns}}/geo \
     --topic {{ns}}/mic \
     --weight {{mae-weight-2}}
 
+# launch a DeepSense classifier
 ds:
     LOGLEVEL=debug rye run acies-ds \
     --connect unixsock-stream//tmp/{{ns}}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ns}}_acies-geo.sock \
-    --connect {{router_ip}} \
+    --connect {{zrouter}} \
     --namespace {{ns}} \
     --proc_name ds \
     --topic {{ns}}/geo \
@@ -114,65 +127,91 @@ ds:
     --model-config "models/demo2024_deepsense_multi.yaml" \
     --weight "models/demo2024_deepsense_train_best.pt"
 
+# sync weights to the fleet
 push-weight:
     #!/usr/bin/env fish
     for i in rs1 rs2 rs3 rs5 rs6 rs6 rs7 rs8 rs10
         rsync -azvhP models/demo2024* $i.dev:/ws/acies/vehicle-classifier/models
     end
 
+# start the primary and backup classifiers on this node
 start:
-    just {{ns}}
+    just ns={{ns}} zrouter={{zrouter}} {{ns}}
 
+# end all classifiers on this node
 end:
     pkill -SIGINT -f 'acies-vfm'
 
+# primary and backup services on rs1
 rs1:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs2 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs1 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs1 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs2 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs1 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs1 > nohup_vfm_mic.log 2>&1 &
 
+# primary and backup services on rs2
 rs2:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs3 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs2 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs2 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs3 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs2 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs2 > nohup_vfm_mic.log 2>&1 &
 
+# primary and backup services on rs3
 rs3:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs5 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs3 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs3 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs5 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs3 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs3 > nohup_vfm_mic.log 2>&1 &
 
+# primary and backup services on rs5
 rs5:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs6 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs5 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs5 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs6 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs5 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs5 > nohup_vfm_mic.log 2>&1 &
 
+# primary and backup services on rs6
 rs6:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs7 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs6 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs6 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs7 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs6 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs6 > nohup_vfm_mic.log 2>&1 &
 
+# primary and backup services on rs7
 rs7:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs8 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs7 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs7 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs8 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs7 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs7 > nohup_vfm_mic.log 2>&1 &
 
+# primary and backup services on rs8
 rs8:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs10 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs8 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs8 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs10 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs8 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs8 > nohup_vfm_mic.log 2>&1 &
 
+# primary and backup services on rs10
 rs10:
-    nohup just vfm > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm rs1 > nohup_vfm.log 2>&1 &
-    nohup just backup-vfm-geo rs10 > nohup_vfm_geo.log 2>&1 &
-    nohup just backup-vfm-mic rs10 > nohup_vfm_mic.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs1 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs10 > nohup_vfm_geo.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs10 > nohup_vfm_mic.log 2>&1 &
 
+# follow and filter the tail of the given log
 tail log filter="detected":
     tail -f {{log}} | grep "{{filter}}"
+
+# start digital twins with different buffer lengths
+launch-twins-latency:
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 1 >/dev/null 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 2 >/dev/null 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 3 >/dev/null 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 4 >/dev/null 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 5 >/dev/null 2>&1 &
+
+alias k := kill
+
+# kill a process by name
+kill pat:
+    pkill -f {{pat}} -SIGINT
