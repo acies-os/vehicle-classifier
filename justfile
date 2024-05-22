@@ -200,7 +200,7 @@ rs10:
 
 # continuously monitor the <log> file for <pat>
 tail log filter="detected":
-    tail -f {{log}} | grep "{{filter}}"
+    tail -F {{log}} | grep "{{filter}}"
 
 # start digital twins with different buffer lengths
 launch-twins-latency:
