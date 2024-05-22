@@ -188,7 +188,7 @@ class Classifier(Service):
                 one_meta = self.combine_meta(ensemble_meta['inputs'])
                 # use current message timestamp as now
                 now = msg.meta['timestamp']
-                self._log_inference_result(pred, confidence, one_meta, now)
+                self._log_inference_result(pred, confidence, one_meta, now, ensemble_meta['ensemble_size'])
             except ValueError:
                 # not enough data
                 logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
