@@ -194,7 +194,8 @@ rs8:
 # primary and backup services on rs10
 rs10:
     nohup just ns={{ns}} zrouter={{zrouter}} vfm > nohup_vfm.log 2>&1 &
-    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs1 > nohup_vfm.log 2>&1 &
+    # nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs1 > nohup_vfm.log 2>&1 &
+    nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm rs6 > nohup_vfm.log 2>&1 &
     nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-geo rs10 > nohup_vfm_geo.log 2>&1 &
     nohup just ns={{ns}} zrouter={{zrouter}} backup-vfm-mic rs10 > nohup_vfm_mic.log 2>&1 &
 
