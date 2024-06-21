@@ -1,15 +1,14 @@
 import logging
 import queue
 import threading
+from copy import deepcopy
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
 import click
 import numpy as np
-from acies.node.logging import init_logger
-from acies.node.net import common_options, get_zconf
-from acies.node.service import AciesMsg, Service, pretty
+from acies.core import Message, Service, common_options, get_zconf, init_logger, pretty
 from acies.vehicle_classifier.buffer import StreamBuffer, TemporalEnsembleBuff
 from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
@@ -80,7 +79,7 @@ class Classifier(Service):
 
         # dict that holds the latest msg from each topic, `self.sync_with_twin`
         # will send messages in this dict to the digital twin
-        self._sync_latest: dict[str, AciesMsg] = {}
+        self._sync_latest: dict[str, Message] = {}
         self._sync_latest_lock = threading.Lock()
 
     def twin_sync_register(self, topic, msg):
@@ -147,7 +146,7 @@ class Classifier(Service):
                     'inputs': dict(meta_data),
                 },
             )
-            log_msg = pretty(asdict(msg), max_seq_length=6, max_width=500, newline='')
+            log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')
 
             # log predicted label and confidence
@@ -168,7 +167,7 @@ class Classifier(Service):
 
             try:
                 buff_len = int(self.service_states['twin/buff_len'])
-                min_input_t = min([min(v.keys()) for v in msg.meta['inputs'].values()])
+                min_input_t = min([min(v.keys()) for v in msg.get_metadata()['inputs'].values()])
                 ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
                     min_input_t,
                     # give it an extra second to accommodate the fluctuation
@@ -183,11 +182,11 @@ class Classifier(Service):
                 # publish ensemble classification result
                 ensemble_msg = self.make_msg('classification', ensemble_result, meta=ensemble_meta)
                 self.send(f'{node}/vehicle', ensemble_msg)
-                log_msg = pretty(asdict(ensemble_msg), max_seq_length=6, max_width=500, newline='')
+                log_msg = pretty(ensemble_msg.to_dict(), max_seq_length=6, max_width=500, newline='')
                 # logger.debug(f'ensemble result: {log_msg}')
                 one_meta = self.combine_meta(ensemble_meta['inputs'])
                 # use current message timestamp as now
-                now = msg.meta['timestamp']
+                now = msg.timestamp
                 self._log_inference_result(pred, confidence, one_meta, now, ensemble_meta['ensemble_size'])
             except ValueError:
                 # not enough data
@@ -227,7 +226,7 @@ class Classifier(Service):
         if self.is_digital_twin:
             return
 
-        to_sync: dict[str, AciesMsg] = {}
+        to_sync: dict[str, Message] = {}
         with self._sync_latest_lock:
             keys_to_sync = list(self._sync_latest.keys())
             for k in keys_to_sync:
@@ -235,7 +234,7 @@ class Classifier(Service):
 
         for topic, _msg in to_sync.items():
             # deepcopy the msg to avoid modification
-            msg = AciesMsg(**asdict(_msg))
+            msg = deepcopy(_msg)
 
             # sync_topic = 'cp/dtwin_ctrl/ctrl'
             sync_topic = get_twin_topic(topic)
@@ -249,7 +248,7 @@ class Classifier(Service):
     def handle_message(self):
         try:
             topic, msg = self.msg_q.get_nowait()
-            assert isinstance(msg, AciesMsg)
+            assert isinstance(msg, Message)
         except queue.Empty:
             return
 
@@ -281,10 +280,10 @@ class Classifier(Service):
             logger.debug('currently deactivated, standing by')
 
     def run(self):
-        self.sched_periodic(2, self.log_activate_status)
-        self.sched_periodic(0.1, self.handle_message)
-        self.sched_periodic(1, self.run_inference)
-        self.sched_periodic(self.sync_interval, self.twin_sync)
+        self.schedule(2, self.log_activate_status, periodic=True)
+        self.schedule(0.1, self.handle_message, periodic=True)
+        self.schedule(1, self.run_inference, periodic=True)
+        self.schedule(self.sync_interval, self.twin_sync, periodic=True)
         self._scheduler.run()
 
 
@@ -312,7 +311,7 @@ def main(
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
 
-    init_logger(f'{namespace}_{proc_name}.log', get_logger='acies.infer')
+    init_logger(f'{namespace}_{proc_name}.log', name='acies.infer')
     z_conf = get_zconf(mode, connect, listen)
 
     # initialize the class

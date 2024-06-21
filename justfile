@@ -208,8 +208,8 @@ launch-twins-latency:
     nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 1 >/dev/null 2>&1 &
     nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 2 >/dev/null 2>&1 &
     nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 3 >/dev/null 2>&1 &
-    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 4 >/dev/null 2>&1 &
-    nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 5 >/dev/null 2>&1 &
+    # nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 4 >/dev/null 2>&1 &
+    # nohup just ns={{ns}} zrouter={{zrouter}} twin-vfm multimodal 5 >/dev/null 2>&1 &
 
 # start digital twins with different modalities
 launch-twins-modalities:
