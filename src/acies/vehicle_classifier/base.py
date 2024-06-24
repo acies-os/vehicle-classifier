@@ -1,7 +1,6 @@
 import logging
 import queue
 import threading
-from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 
@@ -116,8 +115,8 @@ class Classifier(Service):
                 result['label'] = t_meta.get('label', self.service_states.get('ground_truth'))
                 result['distance'] = t_meta.get('distance')
                 result[f'mean_{topic}_energy'].append(t_meta.get('energy'))
-                if k < oldest_key:
-                    oldest_key = k
+                if int(k) < oldest_key:
+                    oldest_key = int(k)
         result['mean_geo_energy'] = np.mean(result['mean_geo_energy'])
         result['mean_mic_energy'] = np.mean(result['mean_mic_energy'])
         result['oldest_timestamp'] = oldest_key
@@ -150,8 +149,8 @@ class Classifier(Service):
 
             # log inference result
             result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
-            payload = {'logits': result, 'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
-            msg = self.make_msg('json', payload)
+            metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
+            msg = self.make_msg('json', result, metadata)
             log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')
 
@@ -178,7 +177,7 @@ class Classifier(Service):
         self.ensemble_buff.add(msg)
         try:
             buff_len = int(self.service_states['twin/buff_len'])
-            min_input_t = min([min(v.keys()) for v in msg.get_metadata()['inputs'].values()])
+            min_input_t = min([min(int(vv) for vv in v.keys()) for v in msg.get_metadata()['inputs'].values()])
             ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
                 min_input_t,
                 # give it an extra second to accommodate the fluctuation
@@ -191,7 +190,7 @@ class Classifier(Service):
                     if k.startswith('twin/'):
                         ensemble_meta[k] = v
             # publish ensemble classification result
-            ensemble_msg = self.make_msg('logits', ensemble_result, meta=ensemble_meta)
+            ensemble_msg = self.make_msg('json', ensemble_result, meta=ensemble_meta)
             self.send(f'{node}/vehicle', ensemble_msg)
             pretty(ensemble_msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             # logger.debug(f'ensemble result: {log_msg}')
@@ -244,8 +243,8 @@ class Classifier(Service):
                 to_sync[k] = self._sync_latest.pop(k)
 
         for topic, _msg in to_sync.items():
-            # deepcopy the msg to avoid modification
-            msg = deepcopy(_msg)
+            # deep copy the msg to avoid modification
+            msg = AciesMsg.from_bytes(_msg.to_bytes())
 
             # sync_topic = 'cp/dtwin_ctrl/ctrl'
             sync_topic = get_twin_topic(topic)
@@ -256,7 +255,7 @@ class Classifier(Service):
             msg.set_metadata(metadata)
             # msg.metadata['twin/sync_msg_id'] = self.new_msg_id()
             self.send(sync_topic, msg)
-            logger.debug(f'synced msg to {sync_topic}: {msg}')
+            logger.debug(f'synced msg to {sync_topic}: {msg.timestamp}')
 
     def handle_message(self):
         try:

@@ -30,6 +30,7 @@ vfm:
     --proc_name vfm \
     --topic {{ns}}/geo \
     --topic {{ns}}/mic \
+    --feature-twin \
     --weight {{vfm-weight-2}}
 
 # start a digital twin of the VFM classifier

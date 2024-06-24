@@ -73,7 +73,7 @@ class TemporalEnsembleBuff:
 
     def add(self, msg: AciesMsg):
         # ts is of the form: {'twin/rs10/geo': {1716260262: {...}}}
-        ts = msg.get_payload()['inputs']
+        ts = msg.get_metadata()['inputs']
         # use the oldest input message timestamp as the key
         k = min([int(t) for v in ts.values() for t in v])
         self._data[k] = msg
@@ -96,11 +96,11 @@ class TemporalEnsembleBuff:
             #     },
             # message timestamp is in nanoseconds
             ts = max(v.timestamp / 1e9 for v in vals)
-            infer_time_ms = [v.get_payload()['inference_time_ms'] for v in vals]
+            infer_time_ms = [v.get_metadata()['inference_time_ms'] for v in vals]
             infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
             inputs = defaultdict(dict)
             for d in vals:
-                for k, v in d.get_payload()['inputs'].items():
+                for k, v in d.get_metadata()['inputs'].items():
                     inputs[k].update(v)
             meta = {
                 'timestamp': ts,
@@ -115,7 +115,7 @@ class TemporalEnsembleBuff:
     def _soft_voting(self, preds: list[AciesMsg]):
         result = defaultdict(float)
         for pred in preds:
-            for label, logit in pred.get_payload()['logits'].items():
+            for label, logit in pred.get_payload().items():
                 result[label] += logit
         total = len(preds)
         assert total >= 0
