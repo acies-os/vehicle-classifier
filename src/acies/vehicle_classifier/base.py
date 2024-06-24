@@ -2,13 +2,12 @@ import logging
 import queue
 import threading
 from copy import deepcopy
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
 import click
 import numpy as np
-from acies.core import Message, Service, common_options, get_zconf, init_logger, pretty
+from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger, pretty
 from acies.vehicle_classifier.buffer import StreamBuffer, TemporalEnsembleBuff
 from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
@@ -33,13 +32,26 @@ def get_twin_topic(topic: str) -> str:
 
 
 class Classifier(Service):
-    def __init__(self, classifier_config_file, twin_model, twin_buff_len, sync_interval, *args, **kwargs):
+    def __init__(
+        self,
+        classifier_config_file,
+        twin_model,
+        twin_buff_len: int,
+        sync_interval: int,
+        feature_twin: bool,
+        *args,
+        **kwargs,
+    ):
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
+        # features
+        self.feature_twin = feature_twin
+
         # init digital twin
-        self.twin_init(twin_model, twin_buff_len)
-        self.sync_interval = sync_interval
+        if self.feature_twin:
+            self.twin_init(twin_model, twin_buff_len)
+            self.sync_interval = sync_interval
 
         # buffer 10s of data for each topic
         self.buffer = StreamBuffer(size=10)
@@ -79,14 +91,14 @@ class Classifier(Service):
 
         # dict that holds the latest msg from each topic, `self.sync_with_twin`
         # will send messages in this dict to the digital twin
-        self._sync_latest: dict[str, Message] = {}
+        self._sync_latest: dict[str, AciesMsg] = {}
         self._sync_latest_lock = threading.Lock()
 
     def twin_sync_register(self, topic, msg):
         with self._sync_latest_lock:
             self._sync_latest[topic] = msg
 
-    def load_model(self, path_to_weight: Path):
+    def load_model(self, *args, **kwargs):
         """Load model from give path."""
         raise NotImplementedError
 
@@ -128,6 +140,7 @@ class Classifier(Service):
                 samples, meta_data = self.buffer.get(keys, self.input_len)
             except ValueError:
                 # not enough data
+                logger.debug(f'not enough data for {node}')
                 return
 
             # run inference and record execution time
@@ -136,16 +149,9 @@ class Classifier(Service):
             infer_time_ms = timer.elapsed_time_ns / 1e6
 
             # log inference result
-            result = {LABEL_TO_STR[k]: v for k, v in result.items()}
-            msg = self.make_msg(
-                'classification',
-                result,
-                meta={
-                    'timestamp': datetime.now().timestamp(),
-                    'inference_time_ms': infer_time_ms,
-                    'inputs': dict(meta_data),
-                },
-            )
+            result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
+            payload = {'logits': result, 'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
+            msg = self.make_msg('json', payload)
             log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')
 
@@ -163,35 +169,40 @@ class Classifier(Service):
             logger.info(f'{log_msg}')
 
             # perform temporal ensemble
-            self.ensemble_buff.add(msg)
+            if self.feature_twin:
+                self.twin_temp_ensemble(node, msg)
+            else:
+                self.send(self.pub_topic, msg)
 
-            try:
-                buff_len = int(self.service_states['twin/buff_len'])
-                min_input_t = min([min(v.keys()) for v in msg.get_metadata()['inputs'].values()])
-                ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
-                    min_input_t,
-                    # give it an extra second to accommodate the fluctuation
-                    self.input_len * (buff_len - 1),
-                    buff_len,
-                )
-                pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
-                if self.is_digital_twin:
-                    for k, v in self.service_states.items():
-                        if k.startswith('twin/'):
-                            ensemble_meta[k] = v
-                # publish ensemble classification result
-                ensemble_msg = self.make_msg('classification', ensemble_result, meta=ensemble_meta)
-                self.send(f'{node}/vehicle', ensemble_msg)
-                log_msg = pretty(ensemble_msg.to_dict(), max_seq_length=6, max_width=500, newline='')
-                # logger.debug(f'ensemble result: {log_msg}')
-                one_meta = self.combine_meta(ensemble_meta['inputs'])
-                # use current message timestamp as now
-                now = msg.timestamp
-                self._log_inference_result(pred, confidence, one_meta, now, ensemble_meta['ensemble_size'])
-            except ValueError:
-                # not enough data
-                logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
-                return
+    def twin_temp_ensemble(self, node, msg):
+        self.ensemble_buff.add(msg)
+        try:
+            buff_len = int(self.service_states['twin/buff_len'])
+            min_input_t = min([min(v.keys()) for v in msg.get_metadata()['inputs'].values()])
+            ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
+                min_input_t,
+                # give it an extra second to accommodate the fluctuation
+                self.input_len * (buff_len - 1),
+                buff_len,
+            )
+            pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
+            if self.is_digital_twin:
+                for k, v in self.service_states.items():
+                    if k.startswith('twin/'):
+                        ensemble_meta[k] = v
+            # publish ensemble classification result
+            ensemble_msg = self.make_msg('logits', ensemble_result, meta=ensemble_meta)
+            self.send(f'{node}/vehicle', ensemble_msg)
+            pretty(ensemble_msg.to_dict(), max_seq_length=6, max_width=500, newline='')
+            # logger.debug(f'ensemble result: {log_msg}')
+            one_meta = self.combine_meta(ensemble_meta['inputs'])
+            # use current message timestamp as now
+            now = msg.timestamp
+            self._log_inference_result(pred, confidence, one_meta, now, ensemble_meta['ensemble_size'])
+        except ValueError:
+            # not enough data
+            logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
+            return
 
     def _log_inference_result(self, pred, confidence, one_meta, now, ensemble_size=None):
         latency = now - one_meta['oldest_timestamp']
@@ -226,7 +237,7 @@ class Classifier(Service):
         if self.is_digital_twin:
             return
 
-        to_sync: dict[str, Message] = {}
+        to_sync: dict[str, AciesMsg] = {}
         with self._sync_latest_lock:
             keys_to_sync = list(self._sync_latest.keys())
             for k in keys_to_sync:
@@ -239,16 +250,18 @@ class Classifier(Service):
             # sync_topic = 'cp/dtwin_ctrl/ctrl'
             sync_topic = get_twin_topic(topic)
             # add twin sync meta data including the sync method, timestamp, and msg_id
-            msg.meta['twin/sync_method'] = self.service_states['twin/sync_method']
-            msg.meta['twin/sync_timestamp'] = datetime.now().timestamp()
-            msg.meta['twin/sync_msg_id'] = self.new_msg_id()
+            metadata = msg.get_metadata()
+            metadata['twin/sync_method'] = self.service_states['twin/sync_method']
+            metadata['twin/sync_timestamp'] = datetime.now().timestamp()
+            msg.set_metadata(metadata)
+            # msg.metadata['twin/sync_msg_id'] = self.new_msg_id()
             self.send(sync_topic, msg)
             logger.debug(f'synced msg to {sync_topic}: {msg}')
 
     def handle_message(self):
         try:
             topic, msg = self.msg_q.get_nowait()
-            assert isinstance(msg, Message)
+            assert isinstance(msg, AciesMsg)
         except queue.Empty:
             return
 
@@ -257,8 +270,9 @@ class Classifier(Service):
             return
 
         if any(topic.endswith(x) for x in ['geo', 'mic']):
-            timestamp = int(msg.meta['timestamp'])
-            array = np.array(msg.payload['samples'])
+            # msg.timestamp is in ns
+            timestamp = int(msg.timestamp / 1e9)
+            array = np.array(msg.get_payload())
             mod = 'geo' if topic.endswith('geo') else 'mic'
 
             # filter out low energy messages
@@ -267,11 +281,13 @@ class Classifier(Service):
             if energy < thresh:
                 logger.debug(f'energy below threshold: {energy} < {thresh} at {topic}; drop message: {msg}')
                 return
-            msg.meta['energy'] = energy
+            metadata = msg.get_metadata()
+            metadata['energy'] = energy
 
-            self.buffer.add(topic, timestamp, array, msg.meta)
-            # stage the latest msg for each topic to sync with the twin
-            self.twin_sync_register(topic, msg)
+            self.buffer.add(topic, timestamp, array, metadata)
+            if self.feature_twin:
+                # stage the latest msg for each topic to sync with the twin
+                self.twin_sync_register(topic, msg)
         else:
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
@@ -283,7 +299,8 @@ class Classifier(Service):
         self.schedule(2, self.log_activate_status, periodic=True)
         self.schedule(0.1, self.handle_message, periodic=True)
         self.schedule(1, self.run_inference, periodic=True)
-        self.schedule(self.sync_interval, self.twin_sync, periodic=True)
+        if self.feature_twin:
+            self.schedule(self.sync_interval, self.twin_sync, periodic=True)
         self._scheduler.run()
 
 
@@ -291,8 +308,10 @@ class Classifier(Service):
 @common_options
 @click.option('--weight', help='Model weight', type=str)
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
+@click.option('--feature-twin', help='Enable digital twin features', is_flag=True, default=False)
 @click.option('--twin-model', help='Model used in the digital twin', type=str, default='multimodal')
 @click.option('--twin-buff-len', help='Buffer length in the digital twin', type=int, default=2)
+@click.option('--heartbeat-interval-s', help='Heartbeat interval in seconds', type=int, default=5)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
 def main(
     mode,
@@ -304,8 +323,10 @@ def main(
     weight,
     sync_interval,
     model_args,
+    feature_twin,
     twin_model,
     twin_buff_len,
+    heartbeat_interval_s,
 ):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
@@ -327,6 +348,8 @@ def main(
         topic=topic,
         namespace=namespace,
         proc_name=proc_name,
+        feature_twin=feature_twin,
+        heartbeat_interval_s=heartbeat_interval_s,
     )
 
     # start

@@ -4,9 +4,8 @@ from pathlib import Path
 import click
 import numpy as np
 import torch
+from acies.core import common_options, get_zconf, init_logger
 from acies.FoundationSense.inference import ModelForInference
-from acies.node.logging import init_logger
-from acies.node.net import common_options, get_zconf
 from acies.vehicle_classifier.base import Classifier
 from acies.vehicle_classifier.utils import count_elements, update_sys_argv
 
@@ -70,8 +69,10 @@ class VibroFM(Classifier):
 @click.option('--weight', help='Model weight', type=click.Path(exists=True))
 @click.option('--modality', type=str, help='Single modality: seismic, audio')
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
+@click.option('--feature-twin', help='Enable digital twin features', is_flag=True, default=False)
 @click.option('--twin-model', help='Model used in the digital twin', type=str, default='multimodal')
 @click.option('--twin-buff-len', help='Buffer length in the digital twin', type=int, default=2)
+@click.option('--heartbeat-interval-s', help='Heartbeat interval in seconds', type=int, default=5)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
 def main(
     mode,
@@ -85,15 +86,17 @@ def main(
     modality,
     model_args,
     sync_interval,
+    feature_twin,
     twin_model,
     twin_buff_len,
+    heartbeat_interval_s,
 ):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
 
     log_file = f'{namespace.replace("/", "_")}_{proc_name.replace("/", "_")}.log'
-    init_logger(log_file, get_logger='acies')
+    init_logger(log_file, name='acies')
     z_conf = get_zconf(mode, connect, listen)
 
     logger.debug(f'{modality=}')
@@ -113,6 +116,8 @@ def main(
         deactivated=deactivated,
         classifier_config_file=weight,
         sync_interval=sync_interval,
+        feature_twin=feature_twin,
+        heartbeat_interval_s=heartbeat_interval_s,
     )
 
     # start

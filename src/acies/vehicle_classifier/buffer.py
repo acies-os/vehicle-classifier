@@ -3,7 +3,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
-from acies.node.service import AciesMsg
+from acies.core import AciesMsg
 
 logger = logging.getLogger('acies.infer')
 
@@ -73,7 +73,7 @@ class TemporalEnsembleBuff:
 
     def add(self, msg: AciesMsg):
         # ts is of the form: {'twin/rs10/geo': {1716260262: {...}}}
-        ts = msg.meta['inputs']
+        ts = msg.get_payload()['inputs']
         # use the oldest input message timestamp as the key
         k = min([int(t) for v in ts.values() for t in v])
         self._data[k] = msg

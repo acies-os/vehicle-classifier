@@ -12,8 +12,8 @@ authors = [
 dependencies = [
     "numpy>=1.24.4",
     # "acies-py @ git+ssh://github.com/acies-os/acies-py.git",
-    "acies @ https://github.com/acies-os/acies-os/releases/download/v2024.0622.223641/acies-0.2.0-cp38-abi3-macosx_11_0_arm64.whl ; platform_system == 'Darwin'",
-    "acies @ https://github.com/acies-os/acies-os/releases/download/v2024.0622.223641/acies-0.2.0-cp38-abi3-manylinux_2_34_aarch64.whl ; platform_system == 'Linux' and platform_machine == 'aarch64'",
+    "acies @ https://github.com/acies-os/acies-os/releases/download/v2024.0624.220419/acies-0.2.0-cp38-abi3-macosx_11_0_arm64.whl ; platform_system == 'Darwin'",
+    "acies @ https://github.com/acies-os/acies-os/releases/download/v2024.0624.220419/acies-0.2.0-cp38-abi3-manylinux_2_34_aarch64.whl ; platform_system == 'Linux' and platform_machine == 'aarch64'",
     # "vehicle-detection-baselines @ git+ssh://github.com/acies-os/vehicle-detection-baselines.git",
     "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
     # "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
@@ -51,7 +51,3 @@ extend-select = ['Q', 'RUF100', 'C90', 'I']
 flake8-quotes = { inline-quotes = 'single', multiline-quotes = 'double' }
 mccabe = { max-complexity = 13 }
 format = { quote-style = 'single' }
-
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
