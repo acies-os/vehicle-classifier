@@ -25,8 +25,8 @@ vfm-weight-mic := "models/demo2024_Parkland_TransformerV4_vehicle_classification
 mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
 
 # launch a VFM classifier
-vfm:
-    LOGLEVEL=debug rye run acies-vfm \
+vfm *FEAT_TWIN:
+    LOGLEVEL=debug rye run acies-vfm {{ FEAT_TWIN }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -34,7 +34,6 @@ vfm:
     --proc_name vfm \
     --topic {{ ns }}/geo \
     --topic {{ ns }}/mic \
-    --feature-twin \
     --weight {{ vfm-weight-2 }}
 
 # start a digital twin of the VFM classifier
