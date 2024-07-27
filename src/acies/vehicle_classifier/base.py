@@ -1,7 +1,9 @@
 import logging
 import queue
 import threading
+import time
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 
 import click
@@ -18,6 +20,23 @@ LABEL_TO_STR = {
     2: 'mustang',
     3: 'cx30',
 }
+
+
+def time_diff_decorator(func):
+    last_call = {}
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        current_time = time.time()
+        if func.__name__ in last_call:
+            time_diff = current_time - last_call[func.__name__]
+            logger.debug(f'Time since last call to {func.__name__}: {time_diff:.6f} seconds')
+        else:
+            logger.debug(f'First call to {func.__name__}')
+        last_call[func.__name__] = current_time
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def get_twin_topic(topic: str) -> str:
@@ -132,6 +151,7 @@ class Classifier(Service):
         ns_keys = {n: [f'{n}/{m}' for m in modalities] for n in nodes}
         return ns_keys
 
+    @time_diff_decorator
     def run_inference(self):
         node_keys = self.get_keys_per_node(self.modalities)
         for node, keys in node_keys.items():
@@ -257,6 +277,7 @@ class Classifier(Service):
             self.send(sync_topic, msg)
             logger.debug(f'synced msg to {sync_topic}: {msg.timestamp}')
 
+    @time_diff_decorator
     def handle_message(self):
         try:
             topic, msg = self.msg_q.get_nowait()
@@ -271,6 +292,8 @@ class Classifier(Service):
         if any(topic.endswith(x) for x in ['geo', 'mic']):
             # msg.timestamp is in ns
             timestamp = int(msg.timestamp / 1e9)
+            now = int(datetime.now().timestamp())
+            logger.debug(f'handle_message: {timestamp=}, lat={now-timestamp}, qsize={self.msg_q.qsize()}')
             array = np.array(msg.get_payload())
             mod = 'geo' if topic.endswith('geo') else 'mic'
 

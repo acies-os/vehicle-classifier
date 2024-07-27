@@ -7,7 +7,7 @@ import torch
 from acies.core import common_options, get_zconf, init_logger
 from acies.FoundationSense.inference import ModelForInference
 from acies.vehicle_classifier.base import Classifier
-from acies.vehicle_classifier.utils import count_elements, update_sys_argv
+from acies.vehicle_classifier.utils import TimeProfiler, count_elements, update_sys_argv
 
 logger = logging.getLogger('acies.infer')
 
@@ -51,7 +51,10 @@ class VibroFM(Classifier):
             else:
                 data['shake']['audio'] = mod_data
 
-        logit = self.model(data)  # returns logits [[x, y, z, w]],
+        with TimeProfiler() as timer:
+            logit = self.model(data)  # returns logits [[x, y, z, w]],
+        elapsed_ms = timer.elapsed_time_ns / 1e6
+        logger.debug(f'Time (ms) to infer: {elapsed_ms}')
 
         # result = {
         #     "gle350": logit[0][0],
