@@ -1,57 +1,98 @@
-import asyncio
-import json
-from collections import deque
-from typing import Dict, List
+import logging
+from pathlib import Path
 
 import click
 import numpy as np
-from acies.node import Node, common_options, logger
-from acies.vehicle_classifier.utils import (
-    DistInference,
-    TimeProfiler,
-    calculate_mean_energy,
-    classification_msg,
-    distance_msg,
-    get_time_range,
-    normalize_key,
-    update_sys_argv,
-)
-from acies.vehicle_detection_baselines.inference.inference_logic import Inference
+import torch
+from acies.core import common_options, get_zconf, init_logger
+from acies.FoundationSense.inference import ModelForInference
+from acies.vehicle_classifier.base import Classifier
+from acies.vehicle_classifier.utils import TimeProfiler, count_elements, update_sys_argv
 
+logger = logging.getLogger('acies.infer')
 
-class SimpleClassifier(Node):
-    def __init__(self, weight, *args, **kwargs):
-        # pass other args to parent type
-        super().__init__(*args, **kwargs)
+class SimpleClassifier(Classifier):
+    def __init__(self, modality, classifier_config_file, *args, **kwargs):
+        self._single_modality = modality
+        super().__init__(classifier_config_file, *args, **kwargs)
+        
+        # # your inference model
+        # self.model = Inference(weight)
 
-        # your inference model
-        self.model = Inference(weight)
+        # # buffer incoming messages
+        # self.buffs = {'sei': deque(), 'aco': deque()}
 
-        # buffer incoming messages
-        self.buffs = {'sei': deque(), 'aco': deque()}
+        # # how many input messages the model needs to run inference once
+        # # each message contains 1s of data:
+        # #     seismic  :    200 samples
+        # #     acoustic : 16_000 samples
+        # self.input_len = 1  # intra window for now
 
-        # how many input messages the model needs to run inference once
-        # each message contains 1s of data:
-        #     seismic  :    200 samples
-        #     acoustic : 16_000 samples
-        self.input_len = 1  # intra window for now
+        # # the topic we publish inference results to
+        # self.model_name = 'simple'
+        # self.pub_topic_vehicle = f'{self.get_hostname()}/{self.model_name}/vehicle'
 
-        # the topic we publish inference results to
-        self.model_name = 'simple'
-        self.pub_topic_vehicle = f'{self.get_hostname()}/{self.model_name}/vehicle'
+        # # the topic we publish target distance results to
+        # self.pub_topic_distance = f'{self.get_hostname()}/{self.model_name}/distance'
 
-        # the topic we publish target distance results to
-        self.pub_topic_distance = f'{self.get_hostname()}/{self.model_name}/distance'
+        # # distance classifier
+        # self.distance_classifier = DistInference()
 
-        # distance classifier
-        self.distance_classifier = DistInference()
+        # # 1. Variables for energy detector
+        # self.acoustic_energy_buffer = []  # Buffer for energy level for acoustic signal
+        # self.acoustic_energy_buffer_size = 2  # Maximum enegy level buffer size for acoustic signal
 
-        # 1. Variables for energy detector
-        self.acoustic_energy_buffer = []  # Buffer for energy level for acoustic signal
-        self.acoustic_energy_buffer_size = 2  # Maximum enegy level buffer size for acoustic signal
+        # self.seismic_energy_buffer = []  # Buffer for energy level for seismic signal
+        # self.seismic_energy_buffer_size = 2  # Maximum enegy level buffer size for seismic signal
 
-        self.seismic_energy_buffer = []  # Buffer for energy level for seismic signal
-        self.seismic_energy_buffer_size = 2  # Maximum enegy level buffer size for seismic signal
+    def load_model(self, classifier_config_file: Path):
+        freq_mae = True if 'mae' in self.proc_name else False
+        model = ModelForInference(classifier_config_file, freq_mae, modality=self._single_modality)
+
+        logger.info(
+            f'loaded model to cpu, '
+            f'definition from {ModelForInference.__name__}, '
+            f'weights from {classifier_config_file}, '
+            f'#params={len(list(model.parameters()))}, '
+            f'#elements={count_elements(model)}'
+        )
+        self.modalities = model.args.dataset_config['modality_names']
+        _mapping = {'seismic': 'geo', 'acoustic': 'mic', 'audio': 'mic', 'sei': 'geo', 'aco': 'mic'}
+        self.modalities = [_mapping[x] for x in self.modalities]
+        return model
+    
+    def infer(self, samples: dict[str, dict[int, np.ndarray]]):
+        arrays = {k: self.concat(v) for k, v in samples.items()}
+        arrays = {k.split('/')[-1]: v for k, v in arrays.items()}
+
+        # data = {'shake': {'audio': acoustic_data, 'seismic': seismic_data}}
+        data = {'shake': {}}
+        for mod in self.modalities:
+            mod_data = arrays[mod]
+            if mod == 'geo':
+                mod_data = mod_data[::2].reshape(1, 1, 10, 20)
+            else:
+                mod_data = mod_data[::2].reshape(1, 1, 10, 1600)
+            mod_data = torch.from_numpy(mod_data)
+            if mod == 'geo':
+                data['shake']['seismic'] = mod_data
+            else:
+                data['shake']['audio'] = mod_data
+
+        with TimeProfiler() as timer:
+            logit = self.model(data)  # returns logits [[x, y, z, w]],
+        elapsed_ms = timer.elapsed_time_ns / 1e6
+        logger.debug(f'Time (ms) to infer: {elapsed_ms}')
+
+        # result = {
+        #     "gle350": logit[0][0],
+        #     "miata": logit[0][1],
+        #     "cx30": logit[0][2],
+        #     "mustang": logit[0][3],
+        # }
+        result = dict(zip(np.arange(4), logit[0]))
+
+        return result
 
     def inference(self):
         # buffer incoming messages
@@ -135,25 +176,59 @@ class SimpleClassifier(Node):
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
-@click.option(
-    '-w',
-    '--weight',
-    help='Model weight',
-    type=str,
-)
+@click.option('--weight', help='Model weight', type=click.Path(exists=True))
+@click.option('--modality', type=str, help='Single modality: seismic, audio')
+@click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
+@click.option('--feature-twin', help='Enable digital twin features', is_flag=True, default=False)
+@click.option('--twin-model', help='Model used in the digital twin', type=str, default='multimodal')
+@click.option('--twin-buff-len', help='Buffer length in the digital twin', type=int, default=2)
+@click.option('--heartbeat-interval-s', help='Heartbeat interval in seconds', type=int, default=5)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
-def main(mode, connect, listen, key, weight, model_args):
+def main(
+    mode,
+    connect,
+    listen,
+    topic,
+    namespace,
+    proc_name,
+    deactivated,
+    weight,
+    modality,
+    model_args,
+    sync_interval,
+    feature_twin,
+    twin_model,
+    twin_buff_len,
+    heartbeat_interval_s,
+):
     # let the node swallows the args that it needs,
     # and passes the rest to the neural network model
     update_sys_argv(model_args)
 
+    log_file = f'{namespace.replace("/", "_")}_{proc_name.replace("/", "_")}.log'
+    init_logger(log_file, name='acies')
+    z_conf = get_zconf(mode, connect, listen)
+
+    logger.debug(f'{modality=}')
+
     # initialize the class
-    classifier = SimpleClassifier(
+    clf = SimpleClassifier(
+        modality=modality,
+        conf=z_conf,
+        twin_model=twin_model,
+        twin_buff_len=twin_buff_len,
         mode=mode,
         connect=connect,
         listen=listen,
-        sub_keys=key,
-        pub_keys=[],
-        weight=weight,
+        topic=topic,
+        namespace=namespace,
+        proc_name=proc_name,
+        deactivated=deactivated,
+        classifier_config_file=weight,
+        sync_interval=sync_interval,
+        feature_twin=feature_twin,
+        heartbeat_interval_s=heartbeat_interval_s,
     )
-    asyncio.run(classifier.run())
+
+    # start
+    clf.start()
