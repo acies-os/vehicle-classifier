@@ -151,7 +151,7 @@ class Classifier(Service):
         ns_keys = {n: [f'{n}/{m}' for m in modalities] for n in nodes}
         return ns_keys
 
-    @time_diff_decorator
+    # @time_diff_decorator
     def run_inference(self):
         node_keys = self.get_keys_per_node(self.modalities)
         for node, keys in node_keys.items():
@@ -277,7 +277,7 @@ class Classifier(Service):
             self.send(sync_topic, msg)
             logger.debug(f'synced msg to {sync_topic}: {msg.timestamp}')
 
-    @time_diff_decorator
+    # @time_diff_decorator
     def handle_message(self):
         try:
             topic, msg = self.msg_q.get_nowait()
@@ -293,7 +293,7 @@ class Classifier(Service):
             # msg.timestamp is in ns
             timestamp = int(msg.timestamp / 1e9)
             now = int(datetime.now().timestamp())
-            logger.debug(f'handle_message: {timestamp=}, lat={now-timestamp}, qsize={self.msg_q.qsize()}')
+            # logger.debug(f'handle_message: {timestamp=}, lat={now-timestamp}, qsize={self.msg_q.qsize()}')
             array = np.array(msg.get_payload())
             mod = 'geo' if topic.endswith('geo') else 'mic'
 

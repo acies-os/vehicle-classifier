@@ -11,10 +11,9 @@ authors = [
 ]
 dependencies = [
     "numpy>=1.24.4,<2.0",
-    # "acies-py @ git+ssh://github.com/acies-os/acies-py.git",
-    "acies @ https://github.com/acies-os/acies-os/releases/download/v2024.0727.025758/acies-0.2.0-cp38-abi3-macosx_11_0_arm64.whl ; platform_system == 'Darwin'",
-    "acies @ https://github.com/acies-os/acies-os/releases/download/v2024.0727.025758/acies-0.2.0-cp38-abi3-manylinux_2_34_aarch64.whl ; platform_system == 'Linux' and platform_machine == 'aarch64'",
-    "acies @ https://github.com/acies-os/acies-os/releases/download/v2024.0727.025758/acies-0.2.0-cp38-abi3-manylinux_2_34_x86_64.whl ; platform_system == 'Linux' and platform_machine == 'x86_64'",
+    "acies @ https://github.com/acies-os/acies-os/releases/download/v0.2.2/acies-0.2.2-cp38-abi3-macosx_11_0_arm64.whl ; platform_system == 'Darwin'",
+    "acies @ https://github.com/acies-os/acies-os/releases/download/v0.2.2/acies-0.2.2-cp38-abi3-manylinux_2_34_aarch64.whl ; platform_system == 'Linux' and platform_machine == 'aarch64'",
+    "acies @ https://github.com/acies-os/acies-os/releases/download/v0.2.2/acies-0.2.2-cp38-abi3-manylinux_2_34_x86_64.whl ; platform_system == 'Linux' and platform_machine == 'x86_64'",
     # "vehicle-detection-baselines @ git+ssh://github.com/acies-os/vehicle-detection-baselines.git",
     "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
     # "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
