@@ -230,3 +230,8 @@ kill pat="acies-vfm":
 # list all processes matching the pattern
 ps pat="acies-vfm":
     ps aux | grep {{ pat }}
+
+# sync code to the public repo
+publish:
+    rsync -av --delete --exclude='/.git' --filter=':- .gitignore' \
+        src/acies/vehicle_classifier ../acies-os/src/
