@@ -33,6 +33,9 @@ if TEST:
     print("Running in test mode")
 version = "v1"
 
+TARGETS = ["background", "pedestrian", "fog-machine", "husky", "sedan", "silverado", "warthog", "polaris"]
+FORMATION_TARGETS = ["single", "multi-target"]
+
 
 logger = logging.getLogger('acies.infer')
 
@@ -40,9 +43,11 @@ class SimpleClassifier(Classifier):
     def __init__(self, modality, classifier_config_file, *args, **kwargs):
         self._single_modality = modality
         self.modalities = ['mic', 'geo']
+        
         # super().__init__(classifier_config_file, *args, **kwargs)
         
         self.model = self.load_model(classifier_config_file)
+        self.formation_model = self.load_model(kwargs['formation_classifier_config_file'])
         # Load the label and formation models
     
     def infer(self, samples: dict[str, dict[int, np.ndarray]],option = 'label'):
@@ -50,7 +55,8 @@ class SimpleClassifier(Classifier):
         # get only the first second of data for now
         current_timestamps = list(samples[list(samples.keys())[0]].keys())
         current_timestamp = current_timestamps[0] # first timestamp
-        samples = {k: v[0] for k, v in samples.items()}
+            
+        samples = {k: v[current_timestamp] for k, v in samples.items()}
         
         # arrays = {k: self.concat(v) for k, v in samples.items()}
         
@@ -87,61 +93,68 @@ class SimpleClassifier(Classifier):
             elapsed_ms = timer.elapsed_time_ns / 1e6
             logger.debug(f'Time (ms) to infer: {elapsed_ms}')
 
-            # result = {
-            #     "gle350": logit[0][0],
-            #     "miata": logit[0][1],
-            #     "cx30": logit[0][2],
-            #     "mustang": logit[0][3],
-            # }
-            result = dict(zip(np.arange(4), logit[0]))
+            
+            # create a result dict from TARGET 
+            logits = []
+            for target in TARGETS:
+                logits.append(logit[target])
+                
+            result = dict(zip(np.arange(len(TARGETS)), logits))
 
             return result
         
         
         elif option == 'formation':
-            # data = {'shake': {'audio': acoustic_data, 'seismic': seismic_data}}
-            data = {'shake': {}}
+            data = {}
             for mod in self.modalities:
                 mod_data = arrays[mod]
                 if mod == 'geo':
-                    mod_data = mod_data[::2].reshape(1, 1, 10, 20)
+                    mod_data = np.interp(np.linspace(0, 1, audio_downsampled_len_1sec), np.linspace(0, 1, len(mod_data)), mod_data)
+                    data['x_sei'] = mod_data
                 else:
-                    mod_data = mod_data[::2].reshape(1, 1, 10, 1600)
-                mod_data = torch.from_numpy(mod_data)
-                if mod == 'geo':
-                    data['shake']['seismic'] = mod_data
-                else:
-                    data['shake']['audio'] = mod_data
-
+                    mod_data = mod_data[::16]
+                    data['x_aud'] = mod_data
+                    
+            data['timestamp'] = current_timestamp
+            data['station_id'] = 0
             with TimeProfiler() as timer:
-                logit = self.model(data)
+                logit = self.predict_formation(data)
+            elapsed_ms = timer.elapsed_time_ns / 1e6
+            logger.debug(f'Time (ms) to infer: {elapsed_ms}')
+            
+            
+            # create a result dict from FORMATION_TARGETS
+            logits = []
+            for target in FORMATION_TARGETS:
+                logits.append(logit[target])
+                
+            result = dict(zip(np.arange(len(FORMATION_TARGETS)), logits))
+            
+            return result
+        
+        else:
+            raise ValueError(f"Invalid option: {option}")
         
     
     #### old inference code to migrate to above infer methods ####
     def load_model(self, model_path, targets=None, formation_targets=None):
         # Load the label and formation models
         self.classifier = pickle.load(open(model_path, "rb"))
-        self.targets = targets
-        self.formation_targets = formation_targets
         return self.classifier
 
     def predict_label(self, data):
         all_features = self.preprocess_features(data)
         label_pred = self.model.predict_proba(all_features)
         
-        # Ensure the number of predictions matches the number of targets
-        num_classes = label_pred.shape[1]
-        if num_classes != len(self.targets):
-            logging.warning(f"Number of classes in model ({num_classes}) does not match number of targets ({len(self.targets)})")
-            label_pred = np.pad(label_pred, ((0, 0), (0, len(self.targets) - num_classes)), mode='constant', constant_values=0)
-
-        label_result = {self.targets[i]: float(label_pred[0][i]) for i in range(len(self.targets))}
+        
+        label_result = {TARGETS[i]: float(label_pred[0][i]) for i in range(len(TARGETS))}
         return label_result
 
     def predict_formation(self, data):
         all_features = self.preprocess_features(data)
-        formation_pred = self.formation_classifier.predict(all_features)
-        formation_result = self.formation_targets[int(formation_pred[0])]
+        formation_pred = self.formation_model.predict_proba(all_features)
+        
+        formation_result = {FORMATION_TARGETS[i]: float(formation_pred[0][i]) for i in range(len(FORMATION_TARGETS))}
         return formation_result
 
     def preprocess_features(self, data):
@@ -233,6 +246,10 @@ def main(
 
 ##### BELOW IS FOR TESTING #####
 
+def get_label_from_prediction(prediction,targets):
+    # find the key with max value
+    max_key = max(prediction, key=prediction.get)
+    return targets[max_key]
 
 def process_run_node(run_id, node_id, label_model_path, formation_model_path, targets, formation_targets, base_path, output_dir):
     logging.info(f"Processing run {run_id}, node {node_id}")
@@ -241,10 +258,7 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
 
     label_inference = SimpleClassifier(
     classifier_config_file=label_model_path,
-    modality='multimodal')
-    
-    formation_inference = SimpleClassifier(
-    classifier_config_file=formation_model_path,
+    formation_classifier_config_file=formation_model_path,
     modality='multimodal')
     
     
@@ -307,7 +321,10 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
 
         # Predict label and formation
         label_prediction = label_inference.infer(data, option='label')
-        formation_prediction = formation_inference.infer(data, option='formation')
+        formation_prediction = label_inference.infer(data, option='formation')
+        
+        label_prediction = get_label_from_prediction(label_prediction, targets)
+        formation_prediction = get_label_from_prediction(formation_prediction, formation_targets)
 
         label_predictions.append(label_prediction)
         formation_predictions.append(formation_prediction)
@@ -330,14 +347,14 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
     plt.figure(figsize=(10, 8))
     plt.subplot(4, 1, 1)
     plt.plot(predicted_labels, marker='o', linestyle='None')
-    plt.yticks(range(len(inference.targets)), inference.targets)
+    plt.yticks(range(len(TARGETS)),TARGETS)
     plt.title('Predicted Labels')
     plt.xlabel('Seconds')
     plt.ylabel('Labels')
 
     plt.subplot(4, 1, 2)
     plt.plot(df_formations, marker='o', linestyle='None')
-    plt.yticks(range(len(inference.formation_targets)), inference.formation_targets)
+    plt.yticks(range(len(FORMATION_TARGETS)), FORMATION_TARGETS)
     plt.title('Formation Predictions')
     plt.xlabel('Seconds')
     plt.ylabel('Formation')
@@ -368,8 +385,8 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
 def main_data_loop():
     label_model_path = "/data/kara4/2023-graces-quarters/models/v1_label/model_1.pkl"
     formation_model_path = "/data/kara4/2023-graces-quarters/models/v1_formation/model_1.pkl"
-    targets = ["background", "pedestrian", "fog-machine", "husky", "sedan", "silverado", "warthog", "polaris"]
-    formation_targets = ["single", "multi-target", "trailing"]
+    targets = TARGETS
+    formation_targets = FORMATION_TARGETS
 
     base_path = '/data/kara4/2023-graces-quarters/raw'
     print("Running in test mode")
