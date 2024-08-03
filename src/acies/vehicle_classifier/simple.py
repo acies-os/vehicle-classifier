@@ -26,8 +26,8 @@ import json
 import logging
 from concurrent.futures import ProcessPoolExecutor
 
-
-TEST = True
+PARALLEL = True
+TEST = False
 if TEST:
     logging.info("Running in test mode")
     print("Running in test mode")
@@ -274,8 +274,9 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
     df_geo = pd.read_parquet(geo_file, engine='pyarrow')
     
     if TEST:
-        df_mic = df_mic.head(16000 * 10)
-        df_geo = df_geo.head(200 * 10)
+        seconds = 5
+        df_mic = df_mic.head(16000 * seconds)
+        df_geo = df_geo.head(200 * seconds)
 
     if df_mic.empty or df_geo.empty:
         logging.warning(f"Empty data in run {run_id}, node {node_id}")
@@ -306,7 +307,6 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
 
         audio_packet = samples_audio[t_0 * window_size_audio: (t_0 + 1) * window_size_audio]
         geo_packet = samples_geo[t_0 * window_size_geo: (t_0 + 1) * window_size_geo]
-
         
         data = {
             'rs10/geo': {
@@ -329,7 +329,7 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
         label_predictions.append(label_prediction)
         formation_predictions.append(formation_prediction)
 
-        data_trace.append((audio_packet, geo_packet))
+        # data_trace.append((audio_packet, geo_packet))
         
         # Save timestamped predictions
         timestamped_predictions[t_0] = {
@@ -338,23 +338,22 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
         }
 
     # Plot predictions and original data
-    df_labels = pd.DataFrame(label_predictions)
+    predicted_labels = pd.Series(label_predictions, name = 'label')
     df_formations = pd.Series(formation_predictions, name='formation')
-
-    # Find the predicted label for each second
-    predicted_labels = df_labels.idxmax(axis=1)
-
+    
+    # predicted_labels = predicted_labels.idxmax(axis=1)
+    
     plt.figure(figsize=(10, 8))
     plt.subplot(4, 1, 1)
     plt.plot(predicted_labels, marker='o', linestyle='None')
-    plt.yticks(range(len(TARGETS)),TARGETS)
+    plt.yticks(range(len(targets)),targets)
     plt.title('Predicted Labels')
     plt.xlabel('Seconds')
     plt.ylabel('Labels')
 
     plt.subplot(4, 1, 2)
     plt.plot(df_formations, marker='o', linestyle='None')
-    plt.yticks(range(len(FORMATION_TARGETS)), FORMATION_TARGETS)
+    plt.yticks(range(len(formation_targets)), formation_targets)
     plt.title('Formation Predictions')
     plt.xlabel('Seconds')
     plt.ylabel('Formation')
@@ -382,25 +381,36 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
     logging.info(f"Finished processing run {run_id}, node {node_id}")
 
 
-def main_data_loop():
+def main_data(parallel=False):
     label_model_path = "/data/kara4/2023-graces-quarters/models/v1_label/model_1.pkl"
     formation_model_path = "/data/kara4/2023-graces-quarters/models/v1_formation/model_1.pkl"
     targets = TARGETS
     formation_targets = FORMATION_TARGETS
 
     base_path = '/data/kara4/2023-graces-quarters/raw'
-    print("Running in test mode")
     if TEST:
         output_dir = f'logs/predictions_test_{version}'
     else:
         output_dir = f'logs/predictions_{version}'
     os.makedirs(output_dir, exist_ok=True)
 
-    for run_id in range(37):
-        for node_id in range(1, 5):
-            process_run_node(run_id, node_id, label_model_path, formation_model_path, targets, formation_targets, base_path, output_dir)
+    if not parallel:
+        print("Running in serial mode")
+        for run_id in range(37):
+            for node_id in range(1, 5):
+                process_run_node(run_id, node_id, label_model_path, formation_model_path, targets, formation_targets, base_path, output_dir)
+
+    else:
+        print("Running in parallel mode")
+        with ProcessPoolExecutor() as executor:
+            futures = [
+                executor.submit(process_run_node, run_id, node_id, label_model_path, formation_model_path, targets, formation_targets, base_path, output_dir)
+                for run_id in range(37)
+                for node_id in range(1, 5)
+            ]
+            for future in futures:
+                future.result()  # Wait for all futures to complete
 
 if __name__ == "__main__":
-    # main_data()
-    # Uncomment the line below to test with loops
-    main_data_loop()
+    main_data(parallel=PARALLEL)
+    
