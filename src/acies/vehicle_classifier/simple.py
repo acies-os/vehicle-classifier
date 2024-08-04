@@ -7,6 +7,8 @@ import torch
 import os
 import sys
 
+from collections import deque, Counter
+
 
 from acies.core import common_options, get_zconf, init_logger
 from acies.FoundationSense.inference import ModelForInference
@@ -31,13 +33,64 @@ TEST = False
 if TEST:
     logging.info("Running in test mode")
     print("Running in test mode")
-version = "v2"
+version = "v3"
 
 TARGETS = ["background", "pedestrian", "fog-machine", "husky", "sedan", "silverado", "warthog", "polaris"]
 FORMATION_TARGETS = ["single", "multi-target"]
 
+# label_dict = {
+#             "polaris": 0,
+#             "silverado": 1,
+#             "sedan": 1,
+#             "warthog": 2,
+#             "husky": 3,
+#             "background": -1
+#         }
+SYSTEM_TARGETS = ["background", "polaris", "silverado","warthog", "husky"]
+
+TARGET_MAPPING = {
+    "background": "background",
+    "pedestrian": "background",
+    "fog-machine": "background",
+    "husky": "husky",
+    "sedan": "silverado",
+    "silverado": "silverado",
+    "warthog": "warthog",
+    "polaris": "polaris"
+    }
+
+
 
 logger = logging.getLogger('acies.infer')
+
+
+class CustomQueue:
+    def __init__(self, max_size):
+        self.queue = deque(maxlen=max_size)
+        self.return_count = 0
+        self.current_majority = None
+
+    def put(self, item):
+        self.queue.append(item)
+
+    def get(self):
+        if self.return_count < 5:
+            if self.current_majority is None:
+                self.current_majority = self._find_majority()
+            self.return_count += 1
+            return self.current_majority
+        else:
+            self.return_count = 1
+            self.current_majority = self._find_majority()
+            return self.current_majority
+
+    def _find_majority(self):
+        if not self.queue:
+            return None
+        count = Counter(self.queue)
+        most_common = count.most_common(1)
+        return most_common[0][0] if most_common else None
+
 
 class SimpleClassifier(Classifier):
     def __init__(self, modality, classifier_config_file, *args, **kwargs):
@@ -49,6 +102,15 @@ class SimpleClassifier(Classifier):
         self.model = self.load_model(classifier_config_file)
         self.formation_model = self.load_model(kwargs['formation_classifier_config_file'])
         # Load the label and formation models
+        
+        # create a queue of 11 elements for formation
+        # self.formation_queue = [0] * 11
+        self.formation_queue = CustomQueue(11)
+        
+        # create a queue of 7 elements for label
+        # self.label_queue = [0] * 9
+        self.label_queue = CustomQueue(9)
+        
     
     def infer(self, samples: dict[str, dict[int, np.ndarray]],option = 'label'):
         
@@ -100,10 +162,16 @@ class SimpleClassifier(Classifier):
             logits = []
             for target in TARGETS:
                 logits.append(logit[target])
-                
+            
+            # the original return format for system
             result = dict(zip(np.arange(len(TARGETS)), logits))
+            
+            # get label from prediction for queue
+            label = get_label_from_prediction(result, TARGETS)
+            self.label_queue.put(label)
+            label = self.label_queue.get()
 
-            return result
+            return result, label
         
         
         elif option == 'formation':
@@ -131,10 +199,16 @@ class SimpleClassifier(Classifier):
             logits = []
             for target in FORMATION_TARGETS:
                 logits.append(logit[target])
-                
+            
+            # the original return format for system    
             result = dict(zip(np.arange(len(FORMATION_TARGETS)), logits))
             
-            return result
+            # get label from prediction for queue
+            label = get_label_from_prediction(result, FORMATION_TARGETS)
+            self.formation_queue.put(label)
+            label = self.formation_queue.get()
+            
+            return result, label
         
         else:
             raise ValueError(f"Invalid option: {option}")
@@ -291,8 +365,6 @@ def get_label_from_prediction(prediction,targets):
 def process_run_node(run_id, node_id, label_model_path, formation_model_path, targets, formation_targets, base_path, output_dir):
     logging.info(f"Processing run {run_id}, node {node_id}")
 
-    
-
     label_inference = SimpleClassifier(
     classifier_config_file=label_model_path,
     formation_classifier_config_file=formation_model_path,
@@ -333,6 +405,8 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
     data_trace = []
     label_predictions = []
     formation_predictions = []
+    queue_label_predictions = []
+    queue_formation_predictions = []
     timestamped_predictions = {}
 
     for t_0 in range(total_seconds):
@@ -357,8 +431,8 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
         }
 
         # Predict label and formation
-        label_prediction = label_inference.infer(data, option='label')
-        formation_prediction = label_inference.infer(data, option='formation')
+        label_prediction, queue_label = label_inference.infer(data, option='label')
+        formation_prediction, queue_formation = label_inference.infer(data, option='formation')
         
         label_prediction = get_label_from_prediction(label_prediction, targets)
         formation_prediction = get_label_from_prediction(formation_prediction, formation_targets)
@@ -366,6 +440,10 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
         label_predictions.append(label_prediction)
         formation_predictions.append(formation_prediction)
 
+        # for queue 
+        queue_label_predictions.append(queue_label)
+        queue_formation_predictions.append(queue_formation)
+        
         # data_trace.append((audio_packet, geo_packet))
         
         # Save timestamped predictions
@@ -380,27 +458,43 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
     
     # predicted_labels = predicted_labels.idxmax(axis=1)
     
-    plt.figure(figsize=(10, 8))
-    plt.subplot(4, 1, 1)
+    plt.figure(figsize=(14, 14))
+    plt.subplot(6, 1, 1)
     plt.plot(predicted_labels, marker='o', linestyle='None')
     plt.yticks(range(len(targets)),targets)
     plt.title('Predicted Labels')
     plt.xlabel('Seconds')
     plt.ylabel('Labels')
+    
+    plt.subplot(6, 1, 2)
+    plt.plot(queue_label_predictions, marker='o', linestyle='None')
+    plt.yticks(range(len(targets)),targets)
+    plt.title('Queue Labels')
+    plt.xlabel('Seconds')
+    plt.ylabel('Labels')
+    
 
-    plt.subplot(4, 1, 2)
+    plt.subplot(6, 1, 3)
     plt.plot(df_formations, marker='o', linestyle='None')
     plt.yticks(range(len(formation_targets)), formation_targets)
     plt.title('Formation Predictions')
     plt.xlabel('Seconds')
     plt.ylabel('Formation')
+    
+    plt.subplot(6, 1, 4)
+    plt.plot(queue_formation_predictions, marker='o', linestyle='None')
+    plt.yticks(range(len(formation_targets)), formation_targets)
+    plt.title('Queue Formation Predictions')
+    plt.xlabel('Seconds')
+    plt.ylabel('Formation')
+    
 
-    plt.subplot(4, 1, 3)
+    plt.subplot(6, 1, 5)
     plt.plot(samples_audio, label='Original Audio')
     plt.title('Original Audio Data')
     plt.legend()
 
-    plt.subplot(4, 1, 4)
+    plt.subplot(6, 1, 6)
     plt.plot(samples_geo, label='Original Geo')
     plt.title('Original Geo Data')
     plt.legend()
@@ -435,6 +529,8 @@ def main_data(parallel=False):
         print("Running in serial mode")
         for run_id in range(37):
             for node_id in range(1, 5):
+                # if not (run_id == 13 and node_id == 2):
+                    # continue
                 process_run_node(run_id, node_id, label_model_path, formation_model_path, targets, formation_targets, base_path, output_dir)
 
     else:
