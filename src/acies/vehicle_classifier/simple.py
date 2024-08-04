@@ -31,7 +31,7 @@ TEST = False
 if TEST:
     logging.info("Running in test mode")
     print("Running in test mode")
-version = "v1"
+version = "v2"
 
 TARGETS = ["background", "pedestrian", "fog-machine", "husky", "sedan", "silverado", "warthog", "polaris"]
 FORMATION_TARGETS = ["single", "multi-target"]
@@ -79,10 +79,12 @@ class SimpleClassifier(Classifier):
             for mod in self.modalities:
                 mod_data = arrays[mod]
                 if mod == 'geo':
-                    mod_data = np.interp(np.linspace(0, 1, audio_downsampled_len_1sec), np.linspace(0, 1, len(mod_data)), mod_data)
+                    mod_data = self.upsample_nearest(mod_data, audio_downsampled_len_1sec)
                     data['x_sei'] = mod_data
+                    assert len(mod_data) == audio_downsampled_len_1sec
                 else:
                     mod_data = mod_data[::16] # downsample to 1000 Hz
+                    assert len(mod_data) == audio_downsampled_len_1sec
                     data['x_aud'] = mod_data
                     
             
@@ -109,10 +111,12 @@ class SimpleClassifier(Classifier):
             for mod in self.modalities:
                 mod_data = arrays[mod]
                 if mod == 'geo':
-                    mod_data = np.interp(np.linspace(0, 1, audio_downsampled_len_1sec), np.linspace(0, 1, len(mod_data)), mod_data)
+                    mod_data = self.upsample_nearest(mod_data, audio_downsampled_len_1sec)
                     data['x_sei'] = mod_data
+                    assert len(mod_data) == audio_downsampled_len_1sec
                 else:
                     mod_data = mod_data[::16]
+                    assert len(mod_data) == audio_downsampled_len_1sec
                     data['x_aud'] = mod_data
                     
             data['timestamp'] = current_timestamp
@@ -135,6 +139,39 @@ class SimpleClassifier(Classifier):
         else:
             raise ValueError(f"Invalid option: {option}")
         
+    
+    def upsample_nearest(self, data, new_length):
+        """
+        Upsample the input data to the specified new length using the nearest neighbor method.
+
+        Parameters:
+        - data (numpy.ndarray): The input data array to upsample.
+        - new_length (int): The desired length of the upsampled data array.
+
+        Returns:
+        - numpy.ndarray: The upsampled data array.
+        """
+        original_len = len(data)
+        if original_len == 0:
+            raise ValueError("Input data array is empty.")
+
+        # Calculate the ratio of the new length to the original length
+        ratio = new_length / original_len
+
+        # Create the target indices based on the desired length
+        target_indices = np.arange(new_length)
+
+        # Map the target indices to the nearest original indices
+        nearest_indices = np.round(target_indices / ratio).astype(int)
+
+        # Ensure indices are within the range of original indices
+        nearest_indices = np.clip(nearest_indices, 0, original_len - 1)
+
+        # Create the upsampled array with nearest neighbor values
+        upsampled_data = data[nearest_indices]
+
+        return upsampled_data
+
     
     #### old inference code to migrate to above infer methods ####
     def load_model(self, model_path, targets=None, formation_targets=None):
@@ -382,8 +419,8 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
 
 
 def main_data(parallel=False):
-    label_model_path = "/data/kara4/2023-graces-quarters/models/v1_label/model_1.pkl"
-    formation_model_path = "/data/kara4/2023-graces-quarters/models/v1_formation/model_1.pkl"
+    label_model_path = "/data/kara4/2023-graces-quarters/models/v2_label/final_model.pkl"
+    formation_model_path = "/data/kara4/2023-graces-quarters/models/v2_formation/final_model.pkl"
     targets = TARGETS
     formation_targets = FORMATION_TARGETS
 
