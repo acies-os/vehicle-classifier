@@ -1,11 +1,8 @@
 import logging
-from pathlib import Path
 
 import click
 import numpy as np
-import torch
 import os
-import sys
 
 from collections import deque, Counter
 
@@ -33,7 +30,7 @@ TEST = False
 if TEST:
     logging.info("Running in test mode")
     print("Running in test mode")
-version = "v3"
+version = "v4"
 
 TARGETS = ["background", "pedestrian", "fog-machine", "husky", "sedan", "silverado", "warthog", "polaris"]
 FORMATION_TARGETS = ["single", "multi-target"]
@@ -57,18 +54,20 @@ TARGET_MAPPING = {
     "silverado": "silverado",
     "warthog": "warthog",
     "polaris": "polaris"
-    }
-
+}
 
 
 logger = logging.getLogger('acies.infer')
 
 
+
+#TODO: Add a label-based majority voting system, for instance, amplify warthog detections if they exist as they are more rare
 class CustomQueue:
     def __init__(self, max_size):
         self.queue = deque(maxlen=max_size)
         self.return_count = 0
         self.current_majority = None
+        self.max_size = max_size
 
     def put(self, item):
         self.queue.append(item)
@@ -87,16 +86,23 @@ class CustomQueue:
     def _find_majority(self):
         if not self.queue:
             return None
-        count = Counter(self.queue)
-        most_common = count.most_common(1)
-        return most_common[0][0] if most_common else None
+        
+        weights = np.linspace(1 / self.max_size, 1, num=len(self.queue))
+        weighted_counts = Counter()
 
+        for item, weight in zip(self.queue, weights):
+            weighted_counts[item] += weight
+        
+        # Find the element with the maximum weighted count
+        most_common = weighted_counts.most_common(1)
+        return most_common[0][0] if most_common else None
 
 class SimpleClassifier(Classifier):
     def __init__(self, modality, classifier_config_file, *args, **kwargs):
         self._single_modality = modality
         self.modalities = ['mic', 'geo']
         
+        # TODO: Uncomment this line when deploying to real system.
         # super().__init__(classifier_config_file, *args, **kwargs)
         
         self.model = self.load_model(classifier_config_file)
