@@ -25,12 +25,12 @@ import json
 import logging
 from concurrent.futures import ProcessPoolExecutor
 
-PARALLEL = True
-TEST = False
+PARALLEL = False
+TEST = True
 if TEST:
     logging.info("Running in test mode")
     print("Running in test mode")
-version = "v5"
+version = "v7"
 
 TARGETS = ["background", "pedestrian", "fog-machine", "husky", "sedan", "silverado", "warthog", "polaris"]
 FORMATION_TARGETS = ["single", "multi-target"]
