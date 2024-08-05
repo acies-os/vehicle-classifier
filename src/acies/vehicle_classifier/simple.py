@@ -329,7 +329,7 @@ class SimpleClassifier(Classifier):
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
 @click.option('--weight', help='Model weight', type=click.Path(exists=True))
-@click.option('--formatino_model_path', help='Formation model path', type=click.Path(exists=True))
+@click.option('--formation_model_path', help='Formation model path', type=click.Path(exists=True))
 @click.option('--modality', type=str, help='Single modality: seismic, audio')
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
 @click.option('--feature-twin', help='Enable digital twin features', is_flag=True, default=False)
