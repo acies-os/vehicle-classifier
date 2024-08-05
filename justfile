@@ -21,8 +21,8 @@ zrouter := 'tcp/192.168.34.152:7447'
 #vfm-weight-mic := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_audio_best.pt"
 
 vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_multiclassbest.pt"
-vfm-weight-geo := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_seismic_best.pt"
-vfm-weight-mic := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_audio_best.pt"
+vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_seismic_multiclassbest.pt"
+vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_audio_multiclassbest.pt"
 
 # FreqMAE weights
 
@@ -39,6 +39,28 @@ vfm *FEAT_TWIN:
     --topic {{ ns }}/geo \
     --topic {{ ns }}/mic \
     --weight {{ vfm-weight-2 }}
+
+# launch a VFM-geo classifier
+vfm-geo *FEAT_TWIN:
+    LOGLEVEL=debug rye run acies-vfm {{ FEAT_TWIN }} \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
+    --connect {{ zrouter }} \
+    --namespace {{ ns }} \
+    --proc_name vfm_geo \
+    --topic {{ ns }}/geo \
+    --modality 'seismic' \
+    --weight {{ vfm-weight-geo }}
+
+# launch a VFM-mic classifier
+vfm-mic *FEAT_TWIN:
+    LOGLEVEL=debug rye run acies-vfm {{ FEAT_TWIN }} \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
+    --connect {{ zrouter }} \
+    --namespace {{ ns }} \
+    --proc_name vfm_mic \
+    --topic {{ ns }}/mic \
+    --modality 'audio' \
+    --weight {{ vfm-weight-mic }}
 
 # start a digital twin of the VFM classifier
 twin-vfm twin-model="multimodal" twin-buff-len="2":
