@@ -18,6 +18,10 @@ dependencies = [
     "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
     # "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
     "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
+    "scikit-learn>=1.5.1",
+    "xgboost>=2.1.1",
+    "scipy>=1.14.0",
+    "matplotlib>=3.9.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

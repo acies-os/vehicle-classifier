@@ -10,11 +10,9 @@ from collections import Counter, deque
 from concurrent.futures import ProcessPoolExecutor
 
 import click
-
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
-
-# import pandas as pd
+import pandas as pd
 from acies.core import common_options, get_zconf, init_logger
 from acies.FoundationSense.inference import ModelForInference
 from acies.vehicle_classifier.base import Classifier
