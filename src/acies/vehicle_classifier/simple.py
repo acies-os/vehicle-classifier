@@ -110,7 +110,7 @@ class SimpleClassifier(Classifier):
         self.modalities = ['mic', 'geo']
         
         # TODO: Uncomment this line when deploying to real system.
-        # super().__init__(classifier_config_file, *args, **kwargs)
+        super().__init__(classifier_config_file, *args, **kwargs)
         
         self.model = self.load_model(classifier_config_file)
         self.formation_model = self.load_model(kwargs['formation_classifier_config_file'])
@@ -526,8 +526,8 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
 
 
 def main_data(parallel=False):
-    label_model_path = "/data/kara4/2023-graces-quarters/models/v2_label/final_model.pkl"
-    formation_model_path = "/data/kara4/2023-graces-quarters/models/v2_formation/final_model.pkl"
+    label_model_path = "src/acies/vehicle_classifier/simple_model/final_model_v2_label.pkl"
+    formation_model_path = "src/acies/vehicle_classifier/simple_model/final_model_v2_formation.pkl"
     targets = TARGETS
     formation_targets = FORMATION_TARGETS
 
