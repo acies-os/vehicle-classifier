@@ -180,7 +180,7 @@ class SimpleClassifier(Classifier):
             result = dict(zip(np.arange(len(TARGETS)), logits))
             
             # get label from prediction for queue
-            label = get_label_from_prediction(result, TARGETS) # remove thsis if we want to return dict of logits
+            # label = get_label_from_prediction(result, TARGETS) # remove thsis if we want to return dict of logits
             self.label_queue.put(label)
             label = self.label_queue.get()
 
@@ -217,7 +217,7 @@ class SimpleClassifier(Classifier):
             result = dict(zip(np.arange(len(FORMATION_TARGETS)), logits))
             
             # get label from prediction for queue
-            label = get_label_from_prediction(result, FORMATION_TARGETS)
+            # label = get_label_from_prediction(result, FORMATION_TARGETS)
             self.formation_queue.put(label)
             label = self.formation_queue.get()
             
