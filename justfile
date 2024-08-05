@@ -72,8 +72,8 @@ simple *FEAT_TWIN:
     --proc_name simple \
     --topic {{ ns }}/geo \
     --topic {{ ns }}/mic \
-    --weight /src/acies/vehicle_classifier/simple_model/final_model_v2_label.pkl \
-    --formation_classifier_confgi_file /src/acies/vehicle_classifier/simple_model/final_model_v2_formation.pkl
+    --weight src/acies/vehicle_classifier/simple_model/final_model_v2_label.pkl \
+    --formation_classifier_confgi_file src/acies/vehicle_classifier/simple_model/final_model_v2_formation.pkl
 
 # start a digital twin of the VFM classifier
 twin-vfm twin-model="multimodal" twin-buff-len="2":
