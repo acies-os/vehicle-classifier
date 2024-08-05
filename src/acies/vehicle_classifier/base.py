@@ -14,11 +14,19 @@ from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 
 logger = logging.getLogger('acies.infer')
 
+# LABEL_TO_STR = {
+#     0: 'miata',
+#     1: 'gle350',
+#     2: 'mustang',
+#     3: 'cx30',
+# }
+
+# GQ experiment
 LABEL_TO_STR = {
-    0: 'miata',
-    1: 'gle350',
-    2: 'mustang',
-    3: 'cx30',
+    0: 'polaris',
+    1: 'warthog',
+    2: 'truck',
+    3: 'husky',
 }
 
 
