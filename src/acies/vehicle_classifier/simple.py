@@ -30,7 +30,7 @@ TEST = False
 if TEST:
     logging.info("Running in test mode")
     print("Running in test mode")
-version = "v4"
+version = "v5"
 
 TARGETS = ["background", "pedestrian", "fog-machine", "husky", "sedan", "silverado", "warthog", "polaris"]
 FORMATION_TARGETS = ["single", "multi-target"]
@@ -62,10 +62,11 @@ logger = logging.getLogger('acies.infer')
 
 
 #TODO: Add a label-based majority voting system, for instance, amplify warthog detections if they exist as they are more rare
+
 class CustomQueue:
     def __init__(self, max_size):
         self.queue = deque(maxlen=max_size)
-        self.return_count = 0
+        self.last_majorities = deque(maxlen=5)  # Keep track of last 5 majorities
         self.current_majority = None
         self.max_size = max_size
 
@@ -73,26 +74,32 @@ class CustomQueue:
         self.queue.append(item)
 
     def get(self):
-        if self.return_count < 5:
-            if self.current_majority is None:
-                self.current_majority = self._find_majority()
-            self.return_count += 1
-            return self.current_majority
+        new_majority = self._find_majority()
+        if self.current_majority is None:
+            self.current_majority = new_majority
         else:
-            self.return_count = 1
-            self.current_majority = self._find_majority()
-            return self.current_majority
+            self.last_majorities.append(new_majority)
+            if self._should_change_majority():
+                self.current_majority = new_majority
+
+        return self.current_majority
+
+    def _should_change_majority(self):
+        # Check if 3 out of the last 5 majorities are different from the current majority
+        return sum(1 for m in self.last_majorities if m != self.current_majority) >= 3
 
     def _find_majority(self):
         if not self.queue:
             return None
-        
+
         weights = np.linspace(1 / self.max_size, 1, num=len(self.queue))
         weighted_counts = Counter()
 
         for item, weight in zip(self.queue, weights):
+            if item in ["background", "pedestrian", "fog-machine"]:
+                weight *= 0.5  # Reduce weight by 50% for specific targets
             weighted_counts[item] += weight
-        
+
         # Find the element with the maximum weighted count
         most_common = weighted_counts.most_common(1)
         return most_common[0][0] if most_common else None
@@ -173,7 +180,7 @@ class SimpleClassifier(Classifier):
             result = dict(zip(np.arange(len(TARGETS)), logits))
             
             # get label from prediction for queue
-            label = get_label_from_prediction(result, TARGETS)
+            label = get_label_from_prediction(result, TARGETS) # remove thsis if we want to return dict of logits
             self.label_queue.put(label)
             label = self.label_queue.get()
 
