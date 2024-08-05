@@ -59,6 +59,13 @@ TARGET_MAPPING = {
 
 logger = logging.getLogger('acies.infer')
 
+def label_mapping(results, TARGETS=TARGETS, SYSTEM_TARGETS=SYSTEM_TARGETS, TARGET_MAPPING=TARGET_MAPPING):
+    # map the results to the system targets, sum up
+    system_results = {target: 0 for target in SYSTEM_TARGETS}
+    for target in TARGETS:
+        target_index = TARGETS.index(target)
+        system_results[TARGET_MAPPING[target]] += results[target_index]
+    return system_results
 
 
 #TODO: Add a label-based majority voting system, for instance, amplify warthog detections if they exist as they are more rare
@@ -181,9 +188,11 @@ class SimpleClassifier(Classifier):
             
             # get label from prediction for queue
             # label = get_label_from_prediction(result, TARGETS) # remove thsis if we want to return dict of logits
-            self.label_queue.put(label)
-            label = self.label_queue.get()
-
+            # self.label_queue.put(label)
+            # label = self.label_queue.get()
+            
+            result = label_mapping(result) # return system labels
+            
             return result# , label
         
         
@@ -218,8 +227,8 @@ class SimpleClassifier(Classifier):
             
             # get label from prediction for queue
             # label = get_label_from_prediction(result, FORMATION_TARGETS)
-            self.formation_queue.put(label)
-            label = self.formation_queue.get()
+            # self.formation_queue.put(label)
+            # label = self.formation_queue.get()
             
             return result# , label
         
@@ -444,30 +453,35 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
         }
 
         # Predict label and formation
-        label_prediction, queue_label = label_inference.infer(data, option='label')
-        formation_prediction, queue_formation = label_inference.infer(data, option='formation')
+        label_prediction = label_inference.infer(data, option='label')
+        print(label_prediction)
         
-        label_prediction = get_label_from_prediction(label_prediction, targets)
-        formation_prediction = get_label_from_prediction(formation_prediction, formation_targets)
+        # formation_prediction = label_inference.infer(data, option='formation')
+        
+        # label_prediction = get_label_from_prediction(label_prediction, targets)
+        # formation_prediction = get_label_from_prediction(formation_prediction, formation_targets)
 
         label_predictions.append(label_prediction)
-        formation_predictions.append(formation_prediction)
+        # formation_predictions.append(formation_prediction)
 
-        # for queue 
-        queue_label_predictions.append(queue_label)
-        queue_formation_predictions.append(queue_formation)
         
         # data_trace.append((audio_packet, geo_packet))
         
         # Save timestamped predictions
         timestamped_predictions[t_0] = {
             'label_prediction': label_prediction,
-            'formation_prediction': formation_prediction
+            # 'formation_prediction': formation_prediction
         }
-
+    # Save predictions to JSON
+    json_filename = os.path.join(output_dir, f'run{run_id}_gq-{node_id}_results.json')
+    with open(json_filename, 'w') as json_file:
+        json.dump(timestamped_predictions, json_file, indent=4)
+    
+    logging.info(f"Finished processing run {run_id}, node {node_id}")
+    return timestamped_predictions
     # Plot predictions and original data
     predicted_labels = pd.Series(label_predictions, name = 'label')
-    df_formations = pd.Series(formation_predictions, name='formation')
+    # df_formations = pd.Series(formation_predictions, name='formation')
     
     # predicted_labels = predicted_labels.idxmax(axis=1)
     
@@ -479,12 +493,12 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
     plt.xlabel('Seconds')
     plt.ylabel('Labels')
     
-    plt.subplot(6, 1, 2)
-    plt.plot(queue_label_predictions, marker='o', linestyle='None')
-    plt.yticks(range(len(targets)),targets)
-    plt.title('Queue Labels')
-    plt.xlabel('Seconds')
-    plt.ylabel('Labels')
+    # plt.subplot(6, 1, 2)
+    # plt.plot(queue_label_predictions, marker='o', linestyle='None')
+    # plt.yticks(range(len(targets)),targets)
+    # plt.title('Queue Labels')
+    # plt.xlabel('Seconds')
+    # plt.ylabel('Labels')
     
 
     plt.subplot(6, 1, 3)
@@ -494,12 +508,12 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
     plt.xlabel('Seconds')
     plt.ylabel('Formation')
     
-    plt.subplot(6, 1, 4)
-    plt.plot(queue_formation_predictions, marker='o', linestyle='None')
-    plt.yticks(range(len(formation_targets)), formation_targets)
-    plt.title('Queue Formation Predictions')
-    plt.xlabel('Seconds')
-    plt.ylabel('Formation')
+    # plt.subplot(6, 1, 4)
+    # plt.plot(queue_formation_predictions, marker='o', linestyle='None')
+    # plt.yticks(range(len(formation_targets)), formation_targets)
+    # plt.title('Queue Formation Predictions')
+    # plt.xlabel('Seconds')
+    # plt.ylabel('Formation')
     
 
     plt.subplot(6, 1, 5)
