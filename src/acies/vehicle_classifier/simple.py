@@ -66,6 +66,7 @@ def map_to_tommy_labels(result, TOMMY_LABELS=TOMMY_LABELS):
             new_result[TOMMY_LABELS['truck']] = result[target]
         else:
             new_result[TOMMY_LABELS[target]] = result[target]
+    new_result = {k: np.float64(v) for k, v in new_result.items()}
     return new_result
 
 
