@@ -55,6 +55,23 @@ TARGET_MAPPING = {
     "warthog": "warthog",
     "polaris": "polaris"
 }
+TOMMY_LABELS = {
+    'polaris': 0, 
+    'warthog': 1,
+    'truck': 2,
+    'husky': 3,
+}
+
+def map_to_tommy_labels(result, TOMMY_LABELS=TOMMY_LABELS):
+    new_result = {}
+    for target in result:
+        if 'background' in target:
+            continue
+        if 'silverado' in target or 'sedan' in target:
+            new_result[TOMMY_LABELS['truck']] = result[target]
+        else:
+            new_result[TOMMY_LABELS[target]] = result[target]
+    return new_result
 
 
 logger = logging.getLogger('acies.infer')
@@ -192,6 +209,8 @@ class SimpleClassifier(Classifier):
             # label = self.label_queue.get()
             
             result = label_mapping(result) # return system labels
+            # print(result)
+            result = map_to_tommy_labels(result)
             
             return result# , label
         
@@ -454,7 +473,6 @@ def process_run_node(run_id, node_id, label_model_path, formation_model_path, ta
 
         # Predict label and formation
         label_prediction = label_inference.infer(data, option='label')
-        print(label_prediction)
         
         # formation_prediction = label_inference.infer(data, option='formation')
         
