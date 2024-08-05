@@ -184,7 +184,7 @@ class SimpleClassifier(Classifier):
             self.label_queue.put(label)
             label = self.label_queue.get()
 
-            return result, label
+            return result# , label
         
         
         elif option == 'formation':
@@ -221,7 +221,7 @@ class SimpleClassifier(Classifier):
             self.formation_queue.put(label)
             label = self.formation_queue.get()
             
-            return result, label
+            return result# , label
         
         else:
             raise ValueError(f"Invalid option: {option}")
