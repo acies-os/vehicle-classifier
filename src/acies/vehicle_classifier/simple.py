@@ -129,7 +129,6 @@ class CustomQueue:
 class SimpleClassifier(Classifier):
     def __init__(self, modality, classifier_config_file, *args, **kwargs):
         self._single_modality = modality
-        self.modalities = ['mic', 'geo']
 
         # TODO: Uncomment this line when deploying to real system.
         super().__init__(classifier_config_file, *args, **kwargs)
@@ -282,6 +281,7 @@ class SimpleClassifier(Classifier):
     def load_model(self, model_path, targets=None, formation_targets=None):
         # Load the label and formation models
         self.classifier = pickle.load(open(model_path, 'rb'))
+        self.modalities = ['mic', 'geo']
         return self.classifier
 
     def predict_label(self, data):
