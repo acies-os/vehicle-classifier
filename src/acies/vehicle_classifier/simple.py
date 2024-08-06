@@ -205,6 +205,30 @@ class SimpleClassifier(Classifier):
             result = label_mapping(result)  # return system labels
             # print(result)
             result = map_to_tommy_labels(result)
+            
+            
+            # include formation to results
+            formation = self.predict_formation(data)
+            
+            if formation['single'] > formation['multi-target']:
+                return result
+            else:
+                # if formation is multi-target, return the largest and second largest, if they are not background.
+                # scale first two to 1, rest to 0 
+                # sort the results
+                sorted_results = {k: v for k, v in sorted(result.items(), key=lambda item: item[1], reverse=True)}
+                # get the first two
+                first_two = list(sorted_results.keys())[:2]
+                # scale them to 1, weighting by original value
+                first_two_values = [sorted_results[k] for k in first_two]
+                first_two_values = np.array(first_two_values)
+                first_two_values = first_two_values / first_two_values.sum()
+                # create new result
+                new_result = {k: 0 for k in result.keys()}
+                new_result[first_two[0]] = first_two_values[0]
+                new_result[first_two[1]] = first_two_values[1]
+                
+                return new_result
 
             return result  # , label
 
