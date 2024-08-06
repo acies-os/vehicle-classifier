@@ -24,6 +24,11 @@ vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_g
 vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_seismic_multiclassbest.pt"
 vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_audio_multiclassbest.pt"
 
+# Simple model
+
+simple-weight := "src/acies/vehicle_classifier/simple_model/final_model_v5_label.pkl"
+simple-formation := "src/acies/vehicle_classifier/simple_model/final_model_v5_formation.pkl"
+
 # FreqMAE weights
 
 mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
@@ -72,8 +77,8 @@ simple *FEAT_TWIN:
     --proc_name simple \
     --topic {{ ns }}/geo \
     --topic {{ ns }}/mic \
-    --weight src/acies/vehicle_classifier/simple_model/final_model_v2_label.pkl \
-    --formation_model_path src/acies/vehicle_classifier/simple_model/final_model_v2_formation.pkl
+    --weight {{ simple-weight }} \
+    --formation_model_path {{ simple-formation }}
 
 # start a digital twin of the VFM classifier
 twin-vfm twin-model="multimodal" twin-buff-len="2":
