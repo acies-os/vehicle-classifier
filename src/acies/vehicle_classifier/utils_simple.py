@@ -31,6 +31,11 @@ def extract_features(samples):
         samples = samples.drop(columns=['timestamp_seconds'])
     
     def apply_features(x, column):
+        if column == 'samples_acoustic':
+            pass
+        elif column == 'samples_seismic':
+            # downsample seismic data to 100 from 1000
+            x = x[::10]
         return pd.Series(applyAndReturnAllFeatures(x[column].values))
     
     # Extract acoustic features
