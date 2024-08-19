@@ -38,7 +38,7 @@ nd:
     --proc_name noise-detector \
     --topic {{ ns }}/geo \
     --topic {{ ns }}/mic \
-    --win_size 7
+    --win-size 7
 
 # launch a VFM classifier
 vfm *FEAT_TWIN:
