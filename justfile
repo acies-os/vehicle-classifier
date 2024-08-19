@@ -29,6 +29,18 @@ vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune
 mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
 
 # launch a VFM classifier
+nd:
+    LOGLEVEL=debug rye run acies-noise-detector \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
+    --connect {{ zrouter }} \
+    --namespace {{ ns }} \
+    --proc_name noise-detector \
+    --topic {{ ns }}/geo \
+    --topic {{ ns }}/mic \
+    --win_size 7
+
+# launch a VFM classifier
 vfm *FEAT_TWIN:
     LOGLEVEL=debug rye run acies-vfm {{ FEAT_TWIN }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
