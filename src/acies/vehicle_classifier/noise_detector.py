@@ -22,6 +22,7 @@ def get_node_name(msg: AciesMsg) -> str:
 class NoiseDetector(Service):
     def __init__(self, win_size: int, *args, **kwargs):
         # pass other args to parent type
+        logger.debug(f"Initializing NoiseDetector")
         super().__init__(*args, **kwargs)
 
         self.buffer = EnsembleBuffer(Path.home() / ".acies" / "noise.db")
@@ -34,14 +35,18 @@ class NoiseDetector(Service):
     def handle_message(self):
         try:
             topic, msg = self.msg_q.get_nowait()
+            print(f"{topic=}")
             assert isinstance(msg, AciesMsg)
         except queue.Empty:
+            print(f"Empty!")
             return
 
+        print(f"Handling message")
         # if deactivated, drop the message
         if self.service_states.get("deactivated", False):
             return
-
+        
+        print(f"{topic=}")
         if any(topic.endswith(x) for x in ["geo", "mic"]):
             # msg.timestamp is in ns
             timestamp = int(msg.timestamp / 1e9)
@@ -60,28 +65,20 @@ class NoiseDetector(Service):
         # samples with timestamp \in [oldest, now]
         samples = self.buffer.get_range(oldest, now)
 
-        # dict keys:
-        # id integer primary key,
-        # node_name text not null,
-        # model_name text not null,
-        # timestamp integer not null,
-        # prediction text not null,
-        # metadata text not null,
-        # status text default 'unprocessed'
-
         # compute the average energy for each modality
-        geo_energy = [sample["prediction"]["geo"] for sample in samples if "geo" in sample["prediction"]]
-        aco_energy = [sample["prediction"]["mic"] for sample in samples if "mic" in sample["prediction"]]
+        print(len(samples))
+        geo_samples = [sample["prediction"]["geo"] for sample in samples if "geo" in sample["prediction"]]
+        aco_samples = [sample["prediction"]["mic"] for sample in samples if "mic" in sample["prediction"]]
 
         average_energy = {
-            "geo": np.mean(geo_energy),
-            "mic": np.mean(aco_energy),
+            "timestamp": now,
+            "geo": np.mean(geo_samples) if len(geo_samples) > 0 else 0,
+            "mic": np.mean(aco_samples) if len(aco_samples) > 0 else 0,
         }
-        # a prediction:
-        logger.debug(f"{now}: {geo_energy=: .2f}, {aco_energy=: .2f}")
-        raise NotImplementedError()
+        
+        logger.debug(f"{now}, {average_energy['geo']}, {average_energy['mic']}")
 
-        msg = self.make_msg("json", result)
+        msg = self.make_msg("json", average_energy)
         self.send(self.pub_topic, msg)
 
     def run(self):
@@ -102,6 +99,7 @@ def main(
     proc_name,
     win_size,
     heartbeat_interval_s,
+    deactivated=False, # !TODO unsure why deactivated is needed
 ):
     init_logger(f"{namespace}_{proc_name}.log", name="acies.noise_detector")
     z_conf = get_zconf(mode, connect, listen)
