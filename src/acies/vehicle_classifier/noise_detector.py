@@ -1,16 +1,13 @@
 import json
 import logging
 import queue
-import threading
-import time
 from datetime import datetime
-from functools import wraps
 from pathlib import Path
 
 import click
 import numpy as np
 from acies.buffers import EnsembleBuffer
-from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger, pretty
+from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger
 
 logger = logging.getLogger("acies.noise_detector")
 
