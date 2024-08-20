@@ -1,3 +1,4 @@
+import json
 import logging
 import queue
 import threading
@@ -35,18 +36,14 @@ class NoiseDetector(Service):
     def handle_message(self):
         try:
             topic, msg = self.msg_q.get_nowait()
-            print(f"{topic=}")
             assert isinstance(msg, AciesMsg)
         except queue.Empty:
-            print(f"Empty!")
             return
 
-        print(f"Handling message")
         # if deactivated, drop the message
         if self.service_states.get("deactivated", False):
             return
-        
-        print(f"{topic=}")
+
         if any(topic.endswith(x) for x in ["geo", "mic"]):
             # msg.timestamp is in ns
             timestamp = int(msg.timestamp / 1e9)
@@ -65,17 +62,24 @@ class NoiseDetector(Service):
         # samples with timestamp \in [oldest, now]
         samples = self.buffer.get_range(oldest, now)
 
-        # compute the average energy for each modality
-        print(len(samples))
-        geo_samples = [sample["prediction"]["geo"] for sample in samples if "geo" in sample["prediction"]]
-        aco_samples = [sample["prediction"]["mic"] for sample in samples if "mic" in sample["prediction"]]
+        mod_energy = {
+            "geo": [],
+            "mic": [],
+        }
 
+        # parse each sample prediction
+        for sample in samples:
+            sample_energy = json.loads(sample["prediction"])  # json str -> dict
+            mod = next(iter(sample_energy))  # each sample is geo xor mic
+            mod_energy[mod].append(sample_energy[mod])
+
+        # compute the average energy for each modality
         average_energy = {
             "timestamp": now,
-            "geo": np.mean(geo_samples) if len(geo_samples) > 0 else 0,
-            "mic": np.mean(aco_samples) if len(aco_samples) > 0 else 0,
+            "geo": np.mean(mod_energy["geo"]) if len(mod_energy["geo"]) > 0 else 0,
+            "mic": np.mean(mod_energy["mic"]) if len(mod_energy["mic"]) > 0 else 0,
         }
-        
+
         logger.debug(f"{now}, {average_energy['geo']}, {average_energy['mic']}")
 
         msg = self.make_msg("json", average_energy)
@@ -99,7 +103,7 @@ def main(
     proc_name,
     win_size,
     heartbeat_interval_s,
-    deactivated=False, # !TODO unsure why deactivated is needed
+    deactivated=False,  # !TODO unsure why deactivated is needed
 ):
     init_logger(f"{namespace}_{proc_name}.log", name="acies.noise_detector")
     z_conf = get_zconf(mode, connect, listen)
