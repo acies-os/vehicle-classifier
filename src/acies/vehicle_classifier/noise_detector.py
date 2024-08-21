@@ -1,15 +1,13 @@
+import json
 import logging
 import queue
-import threading
-import time
 from datetime import datetime
-from functools import wraps
 from pathlib import Path
 
 import click
 import numpy as np
 from acies.buffers import EnsembleBuffer
-from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger, pretty
+from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger
 
 logger = logging.getLogger('acies.noise_detector')
 
@@ -22,6 +20,7 @@ def get_node_name(msg: AciesMsg) -> str:
 class NoiseDetector(Service):
     def __init__(self, win_size: int, *args, **kwargs):
         # pass other args to parent type
+        logger.debug(f'Initializing NoiseDetector')
         super().__init__(*args, **kwargs)
 
         self.buffer = EnsembleBuffer(Path.home() / '.acies' / 'noise.db')
@@ -56,23 +55,30 @@ class NoiseDetector(Service):
     def detect(self):
         now = int(datetime.now().timestamp())
         oldest = now - self.win_size
+        # samples with timestamp \in [oldest, now]
         samples = self.buffer.get_range(oldest, now)
-        # dict keys:
-        # id integer primary key,
-        # node_name text not null,
-        # model_name text not null,
-        # timestamp integer not null,
-        # prediction text not null,
-        # metadata text not null,
-        # status text default 'unprocessed'
 
-        # a prediction:
-        # {'geo': 123.123}
-        # {'mic': 123.123}
-        raise NotImplementedError()
-        logger.debug(f'{now}: {energy=}, {thresh=}, {result=}')
+        mod_energy = {
+            'geo': [],
+            'mic': [],
+        }
 
-        msg = self.make_msg('json', result)
+        # parse each sample prediction
+        for sample in samples:
+            sample_energy = json.loads(sample['prediction'])  # json str -> dict
+            mod = next(iter(sample_energy))  # each sample is geo xor mic
+            mod_energy[mod].append(sample_energy[mod])
+
+        # compute the average energy for each modality
+        average_energy = {
+            'timestamp': now,
+            'geo': np.mean(mod_energy['geo']) if len(mod_energy['geo']) > 0 else 0,
+            'mic': np.mean(mod_energy['mic']) if len(mod_energy['mic']) > 0 else 0,
+        }
+
+        logger.debug(f"{now}, {average_energy['geo']}, {average_energy['mic']}")
+
+        msg = self.make_msg('json', average_energy)
         self.send(self.pub_topic, msg)
 
     def run(self):
@@ -93,6 +99,7 @@ def main(
     proc_name,
     win_size,
     heartbeat_interval_s,
+    deactivated=False,  # !TODO unsure why deactivated is needed
 ):
     init_logger(f'{namespace}_{proc_name}.log', name='acies.noise_detector')
     z_conf = get_zconf(mode, connect, listen)
