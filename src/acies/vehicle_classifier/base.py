@@ -40,13 +40,17 @@ def soft_vote(pred_list: list[dict[str, float]]) -> dict[str, float]:
     if not pred_list:
         return {}
     sum_dict = defaultdict(float)
-    count_dict = defaultdict(int)
+    # count_dict = defaultdict(int)
+    # for pred in pred_list:
+    #     for k, v in pred.items():
+    #         sum_dict[k] += v
+    #         count_dict[k] += 1
+    # mean_pred = {k: sum_dict[k] / count_dict[k] for k in sum_dict}
+    # logger.debug(f'soft_vote: {dict(count_dict)}')
     for pred in pred_list:
         for k, v in pred.items():
             sum_dict[k] += v
-            count_dict[k] += 1
-    mean_pred = {k: sum_dict[k] / count_dict[k] for k in sum_dict}
-    logger.debug(f'soft_vote: {dict(count_dict)}')
+    mean_pred = {k: sum_dict[k] / len(pred_list) for k in sum_dict}
     return mean_pred
 
 
