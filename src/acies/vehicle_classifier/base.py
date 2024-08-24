@@ -199,7 +199,37 @@ class Classifier(Service):
             if self.feature_twin:
                 self.twin_temp_ensemble(node, msg)
             else:
-                self.send(self.pub_topic, msg)
+                # self.send(self.pub_topic, msg)
+                self.temp_ensmeble(node, msg)
+
+    def temp_ensmeble(self, node, msg):
+        self.ensemble_buff.add(msg)
+        try:
+            buff_len = int(self.service_states.get('twin/buff_len', 1))
+            min_input_t = min([min(int(vv) for vv in v.keys()) for v in msg.get_metadata()['inputs'].values()])
+
+            ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
+                min_input_t,
+                # give it an extra second to accommodate the fluctuation
+                self.input_len * (buff_len - 1),
+                buff_len,
+            )
+
+            pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
+
+            # publish ensemble classification result
+            ensemble_msg = self.make_msg('json', ensemble_result, meta=ensemble_meta)
+            self.send(f'{node}/vehicle', ensemble_msg)
+            pretty(ensemble_msg.to_dict(), max_seq_length=6, max_width=500, newline='')
+            # logger.debug(f'ensemble result: {log_msg}')
+            one_meta = self.combine_meta(ensemble_meta['inputs'])
+            # use current message timestamp as now
+            now = msg.timestamp
+            self._log_inference_result(pred, confidence, one_meta, now, ensemble_meta['ensemble_size'])
+        except ValueError:
+            # not enough data
+            logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
+            return
 
     def twin_temp_ensemble(self, node, msg):
         self.ensemble_buff.add(msg)
