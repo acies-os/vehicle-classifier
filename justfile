@@ -19,10 +19,13 @@ zrouter := 'tcp/192.168.34.152:7447'
 #vfm-weight-2 := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 #vfm-weight-geo := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_seismic_best.pt"
 #vfm-weight-mic := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_audio_best.pt"
+#vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_multiclassbest.pt"
+#vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_seismic_multiclassbest.pt"
+#vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_audio_multiclassbest.pt"
 
-vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_multiclassbest.pt"
-vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_seismic_multiclassbest.pt"
-vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_audio_multiclassbest.pt"
+vfm-weight-2 := "Parkland_TransformerV4_vehicle_classification_finetune_audio_ictexclusive_1.0_multiclasslatest.pt"
+vfm-weight-geo := "Parkland_TransformerV4_vehicle_classification_finetune_ictexclusive_1.0_multiclasslatest.pt"
+vfm-weight-mic := "Parkland_TransformerV4_vehicle_classification_finetune_seismic_ictexclusive_1.0_multiclasslatest.pt"
 
 # FreqMAE weights
 
