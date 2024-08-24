@@ -272,7 +272,7 @@ class Classifier(Service):
             ensemble_msg = self.make_msg('json', ensemble_result, ensemble_meta)
             topic_to = f'{node}/vehicle'
             self.send(topic_to, ensemble_msg)
-            logger.debug(f'>>>>> {topic_to} [ensemble_meta["ensemble_size"]]: {ensemble_msg}')
+            logger.debug(f'>>>>> {topic_to} [{ensemble_meta["ensemble_size"]}]: {ensemble_msg}')
 
         except ValueError:
             # not enough data
