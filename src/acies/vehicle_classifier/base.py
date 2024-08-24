@@ -1,13 +1,16 @@
+import json
 import logging
 import queue
 import threading
 import time
+from collections import defaultdict
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
 
 import click
 import numpy as np
+from acies.buffers import EnsembleBuffer
 from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger, pretty
 from acies.vehicle_classifier.buffer import StreamBuffer, TemporalEnsembleBuff
 from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
@@ -30,6 +33,50 @@ LABEL_TO_STR = {
 #     3: 'husky',
 # }
 #
+
+
+def soft_vote(pred_list: list[dict[str, float]]) -> dict[str, float]:
+    """Multi-label prediction soft voting."""
+    if not pred_list:
+        return {}
+    sum_dict = defaultdict(float)
+    count_dict = defaultdict(int)
+    for pred in pred_list:
+        for k, v in pred.items():
+            sum_dict[k] += v
+            count_dict[k] += 1
+    mean_pred = {k: sum_dict[k] / count_dict[k] for k in sum_dict}
+    logger.debug(f'soft_vote: {dict(count_dict)}')
+    return mean_pred
+
+
+def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
+    now = int(time.time())
+    oldest = now - win
+    data = buff.get_range(oldest, now)
+
+    predictions = [json.loads(x['prediction']) for x in data]
+
+    if len(predictions) < size:
+        raise ValueError(f'Not enough data: {len(predictions)=} < {size}')
+
+    pred = soft_vote(predictions)
+    meta_data = [json.loads(x['metadata']) for x in data]
+
+    infer_time_ms = [x['inference_time_ms'] for x in meta_data]
+    infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
+    inputs = defaultdict(dict)
+    for d in meta_data:
+        for k, v in d['inputs'].items():
+            inputs[k].update(v)
+    meta = {
+        'timestamp': now,
+        'inference_time_ms': infer_time_ms,
+        'inputs': dict(inputs),
+        'ensemble_size': len(data),
+    }
+    # logger.debug(f'DEV_DEBUG: {meta}')
+    return pred, meta
 
 
 def time_diff_decorator(func):
@@ -86,6 +133,9 @@ class Classifier(Service):
 
         # classification result ensemble buffer
         self.ensemble_buff = TemporalEnsembleBuff(buff_size=20)
+
+        db_file = self.ns_topic_str(self.proc_name, 'ensemble.db')
+        self.ensemble_buff_db = EnsembleBuffer(db_file.replace('/', '_'))
 
         # how many input messages the model needs to run inference once
         # each message contains 1s of data:
@@ -205,32 +255,30 @@ class Classifier(Service):
                 self.temp_ensmeble(node, msg)
 
     def temp_ensmeble(self, node, msg):
-        self.ensemble_buff.add(msg)
+        model_name = self.proc_name
+        self.ensemble_buff_db.add_entry(
+            node, model_name, int(msg.timestamp / 1e9), msg.get_payload(), msg.get_metadata()
+        )
+        ensemble_win = int(self.service_states.get('twin/buff_len', 1))
+        ensemble_size = int(self.service_states.get('twin/ensemble_size', 1))
         try:
-            buff_len = int(self.service_states.get('twin/buff_len', 1))
-            min_input_t = min([min(int(vv) for vv in v.keys()) for v in msg.get_metadata()['inputs'].values()])
+            # ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(ensemble_win, ensemble_size)
+            ensemble_result, ensemble_meta = ensemble(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
 
-            ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
-                min_input_t,
-                # give it an extra second to accommodate the fluctuation
-                self.input_len * (buff_len - 1),
-                buff_len,
-            )
-
-            pred, confidence = max(ensemble_result.items(), key=lambda x: x[1])
+            if len(ensemble_result) == 0:
+                raise ValueError()
 
             # publish ensemble classification result
-            ensemble_msg = self.make_msg('json', ensemble_result, meta=ensemble_meta)
-            self.send(f'{node}/vehicle', ensemble_msg)
-            pretty(ensemble_msg.to_dict(), max_seq_length=6, max_width=500, newline='')
-            # logger.debug(f'ensemble result: {log_msg}')
-            one_meta = self.combine_meta(ensemble_meta['inputs'])
-            # use current message timestamp as now
-            now = msg.timestamp
-            self._log_inference_result(pred, confidence, one_meta, now, ensemble_meta['ensemble_size'])
+            ensemble_msg = self.make_msg('json', ensemble_result, ensemble_meta)
+            topic_to = f'{node}/vehicle'
+            self.send(topic_to, ensemble_msg)
+            logger.debug('>>>>> {topic_to}: {ensemble_msg}')
+
         except ValueError:
             # not enough data
-            logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
+            logger.debug(f'ensemble buffer: {list(self.ensemble_buff_db.count())}')
+            # clear ensemble
+            self.last_ensemble = None
             return
 
     def twin_temp_ensemble(self, node, msg):
