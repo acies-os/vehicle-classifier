@@ -44,8 +44,8 @@ nd:
     --win-size 7
 
 # launch a VFM classifier
-vfm *FEAT_TWIN:
-    LOGLEVEL=debug rye run acies-vfm {{ FEAT_TWIN }} \
+vfm *FLAGS:
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -56,8 +56,8 @@ vfm *FEAT_TWIN:
     --weight {{ vfm-weight-2 }}
 
 # launch a VFM-geo classifier
-vfm-geo *FEAT_TWIN:
-    LOGLEVEL=debug rye run acies-vfm {{ FEAT_TWIN }} \
+vfm-geo *FLAGS:
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
@@ -67,8 +67,8 @@ vfm-geo *FEAT_TWIN:
     --weight {{ vfm-weight-geo }}
 
 # launch a VFM-mic classifier
-vfm-mic *FEAT_TWIN:
-    LOGLEVEL=debug rye run acies-vfm {{ FEAT_TWIN }} \
+vfm-mic *FLAGS:
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
