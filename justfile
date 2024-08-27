@@ -1,3 +1,5 @@
+set dotenv-load := true
+
 [private]
 default:
     @just --list
@@ -6,14 +8,8 @@ default:
 clean:
     rm -f *.log
 
-# namespace (hostname) of the node
-
 ns := `hostname -s`
-
-# Zenoh Router endpoint
-#zrouter := 'tcp/10.8.0.3:7447'
-
-zrouter := 'tcp/192.168.34.152:7447'
+zrouter := '$ZROUTER'
 
 # VibroFM weights
 #vfm-weight-2 := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
@@ -31,8 +27,11 @@ vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune
 
 mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
 
+echo-zrouter:
+    @echo '{{ zrouter }}='{{ zrouter }}
+
 # launch a VFM classifier
-nd:
+nd: echo-zrouter
     LOGLEVEL=debug rye run acies-noise-detector \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
@@ -44,7 +43,7 @@ nd:
     --win-size 7
 
 # launch a VFM classifier
-vfm *FLAGS:
+vfm *FLAGS: echo-zrouter
     LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
@@ -56,7 +55,7 @@ vfm *FLAGS:
     --weight {{ vfm-weight-2 }}
 
 # launch a VFM-geo classifier
-vfm-geo *FLAGS:
+vfm-geo *FLAGS: echo-zrouter
     LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -67,7 +66,7 @@ vfm-geo *FLAGS:
     --weight {{ vfm-weight-geo }}
 
 # launch a VFM-mic classifier
-vfm-mic *FLAGS:
+vfm-mic *FLAGS: echo-zrouter
     LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect {{ zrouter }} \
@@ -276,3 +275,25 @@ ps pat="acies-vfm":
 publish:
     rsync -av --delete --exclude='/.git' --filter=':- .gitignore' \
         src/acies/vehicle_classifier ../acies-os/src/
+
+update-zrouter end-point:
+    #!/usr/bin/env sh
+    # Check if .env file exists
+    if [ ! -f .env ]; then
+        echo "Error: .env file not found"
+        exit 1
+    fi
+
+    # Use sed to replace the ZROUTER value
+    sed -i.bak 's|^ZROUTER=.*|ZROUTER={{ end-point }}|' .env
+
+    # Check if the replacement was successful
+    if grep -q "ZROUTER={{ end-point }}" .env; then
+        echo "ZROUTER updated successfully to {{ end-point }}"
+    else
+        echo "Error: Failed to update ZROUTER"
+        exit 1
+    fi
+
+    # Remove the backup file created by sed
+    rm .env.bak
