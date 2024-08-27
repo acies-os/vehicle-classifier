@@ -53,7 +53,7 @@ echo-zrouter:
     @echo '{{ zrouter }}='{{ zrouter }}
 
 # launch a VFM classifier
-nd: echo-zrouter
+nd win-size=30: echo-zrouter
     LOGLEVEL=debug rye run acies-noise-detector \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
@@ -62,7 +62,7 @@ nd: echo-zrouter
     --proc_name noise-detector \
     --topic {{ ns }}/geo \
     --topic {{ ns }}/mic \
-    --win-size 7
+    --win-size {{ win-size }}
 
 # launch a VFM classifier
 vfm *FLAGS: echo-zrouter
