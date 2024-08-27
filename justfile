@@ -27,6 +27,28 @@ vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune
 
 mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
 
+update-zrouter end-point:
+    #!/usr/bin/env sh
+    # Check if .env file exists
+    if [ ! -f .env ]; then
+        echo "Error: .env file not found"
+        exit 1
+    fi
+
+    # Use sed to replace the ZROUTER value
+    sed -i.bak 's|^ZROUTER=.*|ZROUTER={{ end-point }}|' .env
+
+    # Check if the replacement was successful
+    if grep -q "ZROUTER={{ end-point }}" .env; then
+        echo "ZROUTER updated successfully to {{ end-point }}"
+    else
+        echo "Error: Failed to update ZROUTER"
+        exit 1
+    fi
+
+    # Remove the backup file created by sed
+    rm .env.bak
+
 echo-zrouter:
     @echo '{{ zrouter }}='{{ zrouter }}
 
@@ -275,25 +297,3 @@ ps pat="acies-vfm":
 publish:
     rsync -av --delete --exclude='/.git' --filter=':- .gitignore' \
         src/acies/vehicle_classifier ../acies-os/src/
-
-update-zrouter end-point:
-    #!/usr/bin/env sh
-    # Check if .env file exists
-    if [ ! -f .env ]; then
-        echo "Error: .env file not found"
-        exit 1
-    fi
-
-    # Use sed to replace the ZROUTER value
-    sed -i.bak 's|^ZROUTER=.*|ZROUTER={{ end-point }}|' .env
-
-    # Check if the replacement was successful
-    if grep -q "ZROUTER={{ end-point }}" .env; then
-        echo "ZROUTER updated successfully to {{ end-point }}"
-    else
-        echo "Error: Failed to update ZROUTER"
-        exit 1
-    fi
-
-    # Remove the backup file created by sed
-    rm .env.bak
