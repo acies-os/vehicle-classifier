@@ -297,3 +297,12 @@ ps pat="acies-vfm":
 publish:
     rsync -av --delete --exclude='/.git' --filter=':- .gitignore' \
         src/acies/vehicle_classifier ../acies-os/src/
+
+pull-weight target:
+    rsync -azvhP {{ target }} tmp
+
+push-weight-gq:
+    rsync -azvhP tmp/ gq-pi-1:/ws/acies/vehicle-classifier/models/
+    rsync -azvhP tmp/ gq-pi-2:/ws/acies/vehicle-classifier/models/
+    rsync -azvhP tmp/ gq-pi-3:/ws/acies/vehicle-classifier/models/
+    rsync -azvhP tmp/ gq-pi-4:/ws/acies/vehicle-classifier/models/
