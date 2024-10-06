@@ -18,14 +18,21 @@ zrouter := '$ZROUTER'
 #vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_multiclassbest.pt"
 #vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_seismic_multiclassbest.pt"
 #vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_audio_multiclassbest.pt"
+#
+# 2024 August demo weights
+#
+#vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_ictexclusive_1.0_multiclasslatest.pt"
+#vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_ictexclusive_1.0_multiclasslatest.pt"
+#vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_ictexclusive_1.0_multiclasslatest.pt"
 
-vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_ictexclusive_1.0_multiclasslatest.pt"
-vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_ictexclusive_1.0_multiclasslatest.pt"
-vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_ictexclusive_1.0_multiclasslatest.pt"
+vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_gcq202410_1.0_multiclasslatest.pt"
+vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcq202410_1.0_multiclasslatest.pt"
+vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_gcq202410_1.0_multiclasslatest.pt"
 
 # FreqMAE weights
+#mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
 
-mae-weight-2 := "models/demo2024_freqmae_Parkland_TransformerV4_vehicle_classification_1.0_finetune_best.pt"
+mae-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcq_1.0_multiclasslatest.pt"
 
 update-zrouter end-point:
     #!/usr/bin/env sh
@@ -169,8 +176,8 @@ backup-vfm-mic ns_primary:
     --weight {{ vfm-weight-mic }}
 
 # launch a FreqMAE classifier
-mae:
-    LOGLEVEL=debug rye run acies-vfm \
+mae *FLAGS: echo-zrouter
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
