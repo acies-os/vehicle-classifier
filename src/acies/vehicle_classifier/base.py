@@ -18,21 +18,20 @@ from acies.vehicle_classifier.utils import TimeProfiler, update_sys_argv
 logger = logging.getLogger('acies.infer')
 
 # ICT experiment
-LABEL_TO_STR = {
-    0: 'miata',
-    1: 'gle350',
-    2: 'mustang',
-    3: 'cx30',
-}
+# LABEL_TO_STR = {
+#     0: 'miata',
+#     1: 'gle350',
+#     2: 'mustang',
+#     3: 'cx30',
+# }
 
 # GQ experiment
-# LABEL_TO_STR = {
-#     0: 'polaris',
-#     1: 'warthog',
-#     2: 'truck',
-#     3: 'husky',
-# }
-#
+LABEL_TO_STR = {
+    0: 'polaris',
+    1: 'warthog',
+    2: 'truck',
+    3: 'husky',
+}
 
 
 def soft_vote(pred_list: list[dict[str, float]]) -> dict[str, float]:
