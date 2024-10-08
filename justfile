@@ -147,7 +147,7 @@ vfm-mic *FLAGS: echo-zrouter
 
 # launch a MAE classifier
 mae *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-mae {{ FLAGS }} \
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -159,7 +159,7 @@ mae *FLAGS: echo-zrouter
 
 # launch a MAE-geo classifier
 mae-geo *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-mae {{ FLAGS }} \
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
@@ -170,7 +170,7 @@ mae-geo *FLAGS: echo-zrouter
 
 # launch a MAE-mic classifier
 mae-mic *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-mae {{ FLAGS }} \
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
