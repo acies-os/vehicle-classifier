@@ -10,6 +10,7 @@ from pathlib import Path
 
 import click
 import numpy as np
+
 from acies.buffers import EnsembleBuffer
 from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger, pretty
 from acies.vehicle_classifier.buffer import StreamBuffer, TemporalEnsembleBuff
@@ -90,7 +91,9 @@ def time_diff_decorator(func):
         current_time = time.time()
         if func.__name__ in last_call:
             time_diff = current_time - last_call[func.__name__]
-            logger.debug(f'Time since last call to {func.__name__}: {time_diff:.6f} seconds')
+            logger.debug(
+                f'Time since last call to {func.__name__}: {time_diff:.6f} seconds'
+            )
         else:
             logger.debug(f'First call to {func.__name__}')
         last_call[func.__name__] = current_time
@@ -152,7 +155,9 @@ class Classifier(Service):
 
         # your inference model
         classifier_config_file = Path(classifier_config_file)
-        assert classifier_config_file.exists(), f'{classifier_config_file} does not exist'
+        assert classifier_config_file.exists(), (
+            f'{classifier_config_file} does not exist'
+        )
 
         self.modalities = []
         self.model = self.load_model(classifier_config_file)
@@ -184,7 +189,12 @@ class Classifier(Service):
         raise NotImplementedError
 
     def combine_meta(self, meta_data: dict[str, dict[int, dict]]):
-        result = {'label': None, 'distance': None, 'mean_geo_energy': [], 'mean_mic_energy': []}
+        result = {
+            'label': None,
+            'distance': None,
+            'mean_geo_energy': [],
+            'mean_mic_energy': [],
+        }
         oldest_key = 1e15
         for topic, topic_data in meta_data.items():
             try:
@@ -194,7 +204,9 @@ class Classifier(Service):
                 logger.error(f'input: {meta_data}')
                 raise IndexError
             for k, t_meta in topic_data.items():
-                result['label'] = t_meta.get('label', self.service_states.get('ground_truth'))
+                result['label'] = t_meta.get(
+                    'label', self.service_states.get('ground_truth')
+                )
                 result['distance'] = t_meta.get('distance')
                 result[f'mean_{topic}_energy'].append(t_meta.get('energy'))
                 if int(k) < oldest_key:
@@ -233,7 +245,7 @@ class Classifier(Service):
             # log inference result
             result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
             metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
-            msg = self.make_msg('json', result, metadata)
+            msg = self.make_msg('json', result, meta=metadata)
             log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')
 
@@ -260,22 +272,30 @@ class Classifier(Service):
     def temp_ensmeble(self, node, msg):
         model_name = self.proc_name
         self.ensemble_buff_db.add_entry(
-            node, model_name, int(msg.timestamp / 1e9), msg.get_payload(), msg.get_metadata()
+            node,
+            model_name,
+            int(msg.timestamp / 1e9),
+            msg.get_payload(),
+            msg.get_metadata(),
         )
         ensemble_win = int(self.service_states.get('twin/buff_len', 1))
         ensemble_size = int(self.service_states.get('twin/ensemble_size', 1))
         try:
             # ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(ensemble_win, ensemble_size)
-            ensemble_result, ensemble_meta = ensemble(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
+            ensemble_result, ensemble_meta = ensemble(
+                self.ensemble_buff_db, ensemble_win, ensemble_size, {}
+            )
 
             if len(ensemble_result) == 0:
                 raise ValueError()
 
             # publish ensemble classification result
-            ensemble_msg = self.make_msg('json', ensemble_result, ensemble_meta)
+            ensemble_msg = self.make_msg('json', ensemble_result, meta=ensemble_meta)
             topic_to = f'{node}/vehicle'
             self.send(topic_to, ensemble_msg)
-            logger.debug(f'>>>>> {topic_to} [{ensemble_meta["ensemble_size"]}]: {ensemble_msg}')
+            logger.debug(
+                f'>>>>> {topic_to} [{ensemble_meta["ensemble_size"]}]: {ensemble_msg}'
+            )
 
         except ValueError:
             # not enough data
@@ -288,7 +308,12 @@ class Classifier(Service):
         self.ensemble_buff.add(msg)
         try:
             buff_len = int(self.service_states['twin/buff_len'])
-            min_input_t = min([min(int(vv) for vv in v.keys()) for v in msg.get_metadata()['inputs'].values()])
+            min_input_t = min(
+                [
+                    min(int(vv) for vv in v.keys())
+                    for v in msg.get_metadata()['inputs'].values()
+                ]
+            )
             ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(
                 min_input_t,
                 # give it an extra second to accommodate the fluctuation
@@ -308,13 +333,19 @@ class Classifier(Service):
             one_meta = self.combine_meta(ensemble_meta['inputs'])
             # use current message timestamp as now
             now = msg.timestamp
-            self._log_inference_result(pred, confidence, one_meta, now, ensemble_meta['ensemble_size'])
+            self._log_inference_result(
+                pred, confidence, one_meta, now, ensemble_meta['ensemble_size']
+            )
         except ValueError:
             # not enough data
-            logger.debug(f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}')
+            logger.debug(
+                f'temporal ensemble buffer: {list(self.ensemble_buff._data.keys())}'
+            )
             return
 
-    def _log_inference_result(self, pred, confidence, one_meta, now, ensemble_size=None):
+    def _log_inference_result(
+        self, pred, confidence, one_meta, now, ensemble_size=None
+    ):
         latency = now - one_meta['oldest_timestamp']
         console_msg = f'detected {pred:<7} ({confidence:.4f}): '
 
@@ -355,15 +386,16 @@ class Classifier(Service):
 
         for topic, _msg in to_sync.items():
             # deep copy the msg to avoid modification
-            msg = AciesMsg.from_bytes(_msg.to_bytes())
+            msg = AciesMsg.from_bytes(_msg.to_bytes()).to_dict()
 
             # sync_topic = 'cp/dtwin_ctrl/ctrl'
             sync_topic = get_twin_topic(topic)
             # add twin sync meta data including the sync method, timestamp, and msg_id
-            metadata = msg.get_metadata()
+            metadata = msg['metadata']
             metadata['twin/sync_method'] = self.service_states['twin/sync_method']
             metadata['twin/sync_timestamp'] = datetime.now().timestamp()
-            msg.set_metadata(metadata)
+            msg['metadata'] = metadata
+            msg = AciesMsg(**msg)
             # msg.metadata['twin/sync_msg_id'] = self.new_msg_id()
             self.send(sync_topic, msg)
             logger.debug(f'synced msg to {sync_topic}: {msg.timestamp}')
@@ -383,18 +415,22 @@ class Classifier(Service):
         if any(topic.endswith(x) for x in ['geo', 'mic']):
             # msg.timestamp is in ns
             timestamp = int(msg.timestamp / 1e9)
-            now = int(datetime.now().timestamp())
+            # now = int(datetime.now().timestamp())
             # logger.debug(f'handle_message: {timestamp=}, lat={now-timestamp}, qsize={self.msg_q.qsize()}')
-            array = np.array(msg.get_payload())
+            payload = msg.payload
+            assert isinstance(payload, list)
+            array = np.array(payload)
             mod = 'geo' if topic.endswith('geo') else 'mic'
 
             # filter out low energy messages
             energy = np.std(array)
             thresh = self.service_states.get(f'{mod}_energy_thresh', 0.0)
             if energy < thresh:
-                logger.debug(f'energy below threshold: {energy} < {thresh} at {topic}; drop message: {msg}')
+                logger.debug(
+                    f'energy below threshold: {energy} < {thresh} at {topic}; drop message: {msg}'
+                )
                 return
-            metadata = msg.get_metadata()
+            metadata = msg.metadata
             metadata['energy'] = energy
 
             self.buffer.add(topic, timestamp, array, metadata)
@@ -421,10 +457,21 @@ class Classifier(Service):
 @common_options
 @click.option('--weight', help='Model weight', type=str)
 @click.option('--sync-interval', help='Sync interval in seconds', type=int, default=1)
-@click.option('--feature-twin', help='Enable digital twin features', is_flag=True, default=False)
-@click.option('--twin-model', help='Model used in the digital twin', type=str, default='multimodal')
-@click.option('--twin-buff-len', help='Buffer length in the digital twin', type=int, default=2)
-@click.option('--heartbeat-interval-s', help='Heartbeat interval in seconds', type=int, default=5)
+@click.option(
+    '--feature-twin', help='Enable digital twin features', is_flag=True, default=False
+)
+@click.option(
+    '--twin-model',
+    help='Model used in the digital twin',
+    type=str,
+    default='multimodal',
+)
+@click.option(
+    '--twin-buff-len', help='Buffer length in the digital twin', type=int, default=2
+)
+@click.option(
+    '--heartbeat-interval-s', help='Heartbeat interval in seconds', type=int, default=5
+)
 @click.argument('model_args', nargs=-1, type=click.UNPROCESSED)
 def main(
     mode,

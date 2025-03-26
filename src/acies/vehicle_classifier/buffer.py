@@ -3,6 +3,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
+
 from acies.core import AciesMsg
 
 logger = logging.getLogger('acies.infer')
@@ -14,8 +15,12 @@ class StreamBuffer:
     # {'rs1/mic': {180000: np.ndarray([...]),
     #             },
     # }
-    _data: dict[str, dict[int, np.ndarray]] = field(default_factory=lambda: defaultdict(dict), repr=False)
-    _meta: dict[str, dict[int, dict]] = field(default_factory=lambda: defaultdict(dict), repr=False)
+    _data: dict[str, dict[int, np.ndarray]] = field(
+        default_factory=lambda: defaultdict(dict), repr=False
+    )
+    _meta: dict[str, dict[int, dict]] = field(
+        default_factory=lambda: defaultdict(dict), repr=False
+    )
     _timestamps: Counter[int] = field(default_factory=Counter)
 
     def add(self, topic: str, timestamp: int, samples: np.ndarray, meta: dict):
@@ -41,7 +46,9 @@ class StreamBuffer:
             if self._timestamps[t] == 0:
                 del self._timestamps[t]
 
-    def get(self, keys: list[str], n: int) -> tuple[dict[str, dict[int, np.ndarray]], dict[str, dict[int, dict]]]:
+    def get(
+        self, keys: list[str], n: int
+    ) -> tuple[dict[str, dict[int, np.ndarray]], dict[str, dict[int, dict]]]:
         """Get n-second of samples for all keys."""
         data = defaultdict(dict)
         data_meta = defaultdict(dict)
@@ -73,7 +80,7 @@ class TemporalEnsembleBuff:
 
     def add(self, msg: AciesMsg):
         # ts is of the form: {'twin/rs10/geo': {1716260262: {...}}}
-        ts = msg.get_metadata()['inputs']
+        ts = msg.metadata['inputs']
         # use the oldest input message timestamp as the key
         k = min([int(t) for v in ts.values() for t in v])
         self._data[k] = msg
@@ -96,11 +103,11 @@ class TemporalEnsembleBuff:
             #     },
             # message timestamp is in nanoseconds
             ts = max(v.timestamp / 1e9 for v in vals)
-            infer_time_ms = [v.get_metadata()['inference_time_ms'] for v in vals]
+            infer_time_ms = [v.metadata['inference_time_ms'] for v in vals]
             infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
             inputs = defaultdict(dict)
             for d in vals:
-                for k, v in d.get_metadata()['inputs'].items():
+                for k, v in d.metadata['inputs'].items():
                     inputs[k].update(v)
             meta = {
                 'timestamp': ts,
@@ -110,12 +117,16 @@ class TemporalEnsembleBuff:
             }
             return result, meta
         else:
-            raise ValueError(f'not enough data: required {ensemble_size}, got {len(vals)}')
+            raise ValueError(
+                f'not enough data: required {ensemble_size}, got {len(vals)}'
+            )
 
     def _soft_voting(self, preds: list[AciesMsg]):
         result = defaultdict(float)
         for pred in preds:
-            for label, logit in pred.get_payload().items():
+            payload = pred.payload
+            assert isinstance(payload, dict)
+            for label, logit in payload.items():
                 result[label] += logit
         total = len(preds)
         assert total >= 0

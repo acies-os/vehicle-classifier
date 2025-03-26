@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 import numpy as np
+
 from acies.buffers import EnsembleBuffer
 from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger
 
@@ -44,11 +45,15 @@ class NoiseDetector(Service):
         if any(topic.endswith(x) for x in ['geo', 'mic']):
             # msg.timestamp is in ns
             timestamp = int(msg.timestamp / 1e9)
-            array = np.array(msg.get_payload())
+            payload = msg.payload
+            assert isinstance(payload, list)
+            array = np.array(payload)
             mod = 'geo' if topic.endswith('geo') else 'mic'
             energy = np.std(array).item()
             node_name = get_node_name(msg)
-            self.buffer.add_entry(node_name, 'noise_detector', timestamp, {mod: energy}, None)
+            self.buffer.add_entry(
+                node_name, 'noise_detector', timestamp, {mod: energy}, None
+            )
         else:
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
@@ -76,7 +81,7 @@ class NoiseDetector(Service):
             'mic': np.mean(mod_energy['mic']) if len(mod_energy['mic']) > 0 else 0,
         }
 
-        logger.debug(f"{now}, {average_energy['geo']}, {average_energy['mic']}")
+        logger.debug(f'{now}, {average_energy["geo"]}, {average_energy["mic"]}')
 
         msg = self.make_msg('json', average_energy)
         self.send(self.pub_topic, msg)
@@ -89,7 +94,9 @@ class NoiseDetector(Service):
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @common_options
 @click.option('--win-size', help='Window size in seconds', type=int)
-@click.option('--heartbeat-interval-s', help='Heartbeat interval in seconds', type=int, default=5)
+@click.option(
+    '--heartbeat-interval-s', help='Heartbeat interval in seconds', type=int, default=5
+)
 def main(
     mode,
     connect,
@@ -97,9 +104,9 @@ def main(
     topic,
     namespace,
     proc_name,
+    deactivated,  # part of `common_options`, but not used here, just ignore it
     win_size,
     heartbeat_interval_s,
-    deactivated=False,  # !TODO unsure why deactivated is needed
 ):
     init_logger(f'{namespace}_{proc_name}.log', name='acies.noise_detector')
     z_conf = get_zconf(mode, connect, listen)

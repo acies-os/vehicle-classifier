@@ -4,10 +4,10 @@ from pathlib import Path
 import click
 import numpy as np
 import torch
+
+from acies.core import common_options, get_zconf, init_logger
 from acies.deepsense_augmented.inference import Inference
 from acies.deepsense_augmented.input_utils.yaml_utils import load_yaml
-from acies.node.logging import init_logger
-from acies.node.net import common_options, get_zconf
 from acies.vehicle_classifier.base import Classifier
 from acies.vehicle_classifier.utils import count_elements
 
@@ -29,7 +29,13 @@ class DeepSense(Classifier):
             f'#elements={count_elements(model.classifier)}'
         )
         self.modalities = self.model_config['loc_modalities']['shake']
-        _mapping = {'seismic': 'geo', 'acoustic': 'mic', 'audio': 'mic', 'sei': 'geo', 'aco': 'mic'}
+        _mapping = {
+            'seismic': 'geo',
+            'acoustic': 'mic',
+            'audio': 'mic',
+            'sei': 'geo',
+            'aco': 'mic',
+        }
         self.modalities = [_mapping[x] for x in self.modalities]
         return model
 
@@ -57,12 +63,16 @@ class DeepSense(Classifier):
 
         seismic_data = torch.unsqueeze(seismic_data, -1)  # [200, 1]
         seismic_data = self.segment_signal(seismic_data, 20, 0)  # [10, 20, 1]
-        seismic_data = torch.permute(torch.abs(torch.fft.fft(seismic_data)), [2, 0, 1])  # [1, 10, 20]
+        seismic_data = torch.permute(
+            torch.abs(torch.fft.fft(seismic_data)), [2, 0, 1]
+        )  # [1, 10, 20]
         seismic_data = torch.unsqueeze(seismic_data, 0)  # [1, 1, 10, 20]
 
         acoustic_data = torch.unsqueeze(acoustic_data, -1)  # [16000, 1]
         acoustic_data = self.segment_signal(acoustic_data, 1600, 0)  # [10, 1600, 1]
-        acoustic_data = torch.permute(torch.abs(torch.fft.fft(acoustic_data)), [2, 0, 1])  # [1, 10, 1600]
+        acoustic_data = torch.permute(
+            torch.abs(torch.fft.fft(acoustic_data)), [2, 0, 1]
+        )  # [1, 10, 1600]
         acoustic_data = torch.unsqueeze(acoustic_data, 0)  # [1, 1, 10, 1600]
 
         data = {'shake': {'audio': acoustic_data, 'seismic': seismic_data}}
@@ -85,7 +95,17 @@ class DeepSense(Classifier):
 @common_options
 @click.option('--weight', help='Model weight', type=click.Path(exists=True))
 @click.option('--model-config', help='Model config yaml.', type=click.Path(exists=True))
-def main(mode, connect, listen, topic, namespace, proc_name, deactivated, weight, model_config):
+def main(
+    mode,
+    connect,
+    listen,
+    topic,
+    namespace,
+    proc_name,
+    deactivated,
+    weight,
+    model_config,
+):
     init_logger(f'{namespace}_{proc_name}.log', get_logger='acies')
     z_conf = get_zconf(mode, connect, listen)
 
