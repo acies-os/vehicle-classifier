@@ -65,6 +65,7 @@ def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
 
     pred = soft_vote(predictions)
     meta_data = [json.loads(x['metadata']) for x in data]
+    pred_distance = [x['pred_distance'] for x in meta_data]
 
     infer_time_ms = [x['inference_time_ms'] for x in meta_data]
     infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
@@ -77,6 +78,7 @@ def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
         'inference_time_ms': infer_time_ms,
         'inputs': dict(inputs),
         'ensemble_size': len(data),
+        'pred_distance': pred_distance,
     }
     # logger.debug(f'DEV_DEBUG: {meta}')
     return pred, meta
@@ -228,11 +230,18 @@ class Classifier(Service):
             # run inference and record execution time
             with TimeProfiler() as timer:
                 result = self.infer(samples)
+            
+            distance = -1
+            if 'distance' in result:
+                distance = result['distance']
+                del result['distance']
+
             infer_time_ms = timer.elapsed_time_ns / 1e6
 
             # log inference result
-            result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
-            metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
+            # result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
+            result = {LABEL_TO_STR[k]: 0.999 for k, v in result.items()}
+            metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data), 'pred_distance': distance}
             msg = self.make_msg('json', result, metadata)
             log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')
@@ -245,6 +254,7 @@ class Classifier(Service):
                 'confidence': confidence,
                 'true_label': one_meta['label'],
                 'distance': one_meta['distance'],
+                'pred_distance': distance,
                 'energy_geo': one_meta['mean_geo_energy'],
                 'energy_mic': one_meta['mean_mic_energy'],
             }
@@ -273,6 +283,7 @@ class Classifier(Service):
 
             # publish ensemble classification result
             ensemble_msg = self.make_msg('json', ensemble_result, ensemble_meta)
+            logger.debug(f"Ensemble meta: {ensemble_meta}")
             topic_to = f'{node}/vehicle'
             self.send(topic_to, ensemble_msg)
             logger.debug(f'>>>>> {topic_to} [{ensemble_meta["ensemble_size"]}]: {ensemble_msg}')
