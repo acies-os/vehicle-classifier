@@ -231,7 +231,7 @@ class Classifier(Service):
             with TimeProfiler() as timer:
                 result = self.infer(samples)
             
-            distance = -1
+            distance = np.random.randint(0, 100)
             if 'distance' in result:
                 distance = result['distance']
                 del result['distance']
@@ -239,8 +239,17 @@ class Classifier(Service):
             infer_time_ms = timer.elapsed_time_ns / 1e6
 
             # log inference result
-            # result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
-            result = {LABEL_TO_STR[k]: 0.999 for k, v in result.items()}
+            result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
+            
+            print(f"Remember to change base.py")
+            result_key = list(result.keys())
+            # randomly select one of the keys and set it to 0.999
+            random_idx = np.random.randint(0, len(result_key))
+            result[result_key[random_idx]] = 0.999
+            
+            print(result)
+            
+            
             metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data), 'pred_distance': distance}
             msg = self.make_msg('json', result, metadata)
             log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')

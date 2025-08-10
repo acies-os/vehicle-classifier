@@ -35,6 +35,12 @@ mae-weight-2 := "models/gcq202410_mae.pt"
 mae-weight-geo := "models/gcq202410_mae_seismic.pt"
 mae-weight-mic := "models/gcq202410_mae_audio.pt"
 
+# ------------------------------ DiffPhys weights ------------------------------
+
+diffphys-weight-2 := "models/gcq202508_diffphys.pt"
+diffphys-weight-geo := "models/gcq202508_diffphys_seismic.pt"
+diffphys-weight-mic := "models/gcq202508_diffphys_audio.pt"
+
 # ------------------------------ Admin Utilities ------------------------------
 
 alias k := kill
@@ -175,6 +181,42 @@ mae-mic *FLAGS: echo-zrouter
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
     --proc_name mae_mic \
+    --topic {{ ns }}/mic \
+    --modality 'audio' \
+    --weight {{ mae-weight-mic }}
+
+# ---------------------------------- DiffPhys ----------------------------------
+
+# launch a DiffPhys classifier
+diffphys *FLAGS: echo-zrouter
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
+    --connect {{ zrouter }} \
+    --namespace {{ ns }} \
+    --proc_name diffphys \
+    --topic {{ ns }}/geo \
+    --topic {{ ns }}/mic \
+    --weight {{ diffphys-weight-2 }}
+
+# launch a DiffPhys-geo classifier
+diffphys-geo *FLAGS: echo-zrouter
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
+    --connect {{ zrouter }} \
+    --namespace {{ ns }} \
+    --proc_name diffphys_geo \
+    --topic {{ ns }}/geo \
+    --modality 'seismic' \
+    --weight {{ diffphys-weight-geo }}
+
+# launch a DiffPhys-mic classifier
+diffphys-mic *FLAGS: echo-zrouter
+    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
+    --connect {{ zrouter }} \
+    --namespace {{ ns }} \
+    --proc_name diffphys_mic \
     --topic {{ ns }}/mic \
     --modality 'audio' \
     --weight {{ mae-weight-mic }}

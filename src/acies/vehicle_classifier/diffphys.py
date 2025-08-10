@@ -109,7 +109,7 @@ def main(
     logger.debug(f'{modality=}')
 
     # initialize the class
-    clf = VibroFM(
+    clf = DiffPhys(
         modality=modality,
         conf=z_conf,
         twin_model=twin_model,
