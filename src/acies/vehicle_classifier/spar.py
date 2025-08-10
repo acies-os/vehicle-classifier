@@ -62,6 +62,7 @@ class SPAR(Classifier):
                     continue
                 mod_data = node_arrays[node][mod]
                 if mod == 'geo':
+                    mod_data -= torch.mean(mod_data)
                     mod_spec = librosa.feature.melspectrogram(
                         y=mod_data,
                         sr=200,
@@ -88,10 +89,10 @@ class SPAR(Classifier):
             mod_video = torch.cat(mod_video, dim=-1)
 
             if mod == 'geo':
-                data['seismic']['data'] = mod_video
+                data['seismic']['data'] = (mod_video + 49.52) / 26.55
                 data['seismic']['valid'] = torch.tensor(mod_valid)
             else:
-                data['acoustic']['data'] = mod_video
+                data['acoustic']['data'] = (mod_video + 44.74) / 17.71
                 data['acoustic']['valid'] = torch.tensor(mod_valid)
 
         data['vantage_ids'] = torch.tensor([0, 1, 2, 3])
