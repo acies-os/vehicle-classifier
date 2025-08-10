@@ -19,6 +19,7 @@ dependencies = [
     "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
     # "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
     "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
+    "quantization @ git+ssh://github.com/acies-os/QuantizedModels.git",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -43,6 +44,7 @@ allow-direct-references = true
 acies-vfm = "acies.vehicle_classifier.vfm:main"
 acies-ds = "acies.vehicle_classifier.ds:main"
 acies-noise-detector = "acies.vehicle_classifier.noise_detector:main"
+acies-adaquant = "acies.vehicle_classifier.adaquant:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/acies"]
