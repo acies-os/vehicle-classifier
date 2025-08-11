@@ -19,7 +19,9 @@ class DiffPhys(Classifier):
 
     def load_model(self, classifier_config_file: Path):
         model = ModelForInference(classifier_config_file, False, modality=self._single_modality)
-        model_distance = ModelForInference(classifier_config_file, False, modality=self._single_modality, distance=True)
+        
+        distance_model_weight = "/ws/acies/vehicle-classifier/models/DiffPhys_distance_regression_202508.pt"
+        self.model_distance = ModelForInference(distance_model_weight, False, modality=self._single_modality, distance_head=True)
 
         logger.info(
             f'loaded model to cpu, '
@@ -53,10 +55,11 @@ class DiffPhys(Classifier):
 
         with TimeProfiler() as timer:
             logit = self.model(data)  # returns logits [[x, y, z, w]],
+            distance = self.model_distance(data)
 
-            if isinstance(logit, tuple):
-                logit = logit[0]
-                distance = logit[1]
+            # if isinstance(logit, tuple):
+            #     logit = logit[0]
+            #     distance = logit[1]
             
             distance = self.model_distance(data)
 
@@ -71,7 +74,6 @@ class DiffPhys(Classifier):
         # }
         result = dict(zip(np.arange(4), logit[0]))
         distance = np.random.randint(0, 100)
-        print(f"Diff phys!!!!!")
         result['distance'] = distance
 
         return result
