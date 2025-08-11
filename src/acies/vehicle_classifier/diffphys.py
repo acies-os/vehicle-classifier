@@ -57,12 +57,6 @@ class DiffPhys(Classifier):
             logit = self.model(data)  # returns logits [[x, y, z, w]],
             distance = self.model_distance(data)
 
-            # if isinstance(logit, tuple):
-            #     logit = logit[0]
-            #     distance = logit[1]
-            
-            distance = self.model_distance(data)
-
         elapsed_ms = timer.elapsed_time_ns / 1e6
         logger.debug(f'Time (ms) to infer: {elapsed_ms}')
 
@@ -73,8 +67,7 @@ class DiffPhys(Classifier):
         #     "mustang": logit[0][3],
         # }
         result = dict(zip(np.arange(4), logit[0]))
-        distance = np.random.randint(0, 100)
-        result['distance'] = distance
+        result['distance'] = distance.item()
 
         return result
 

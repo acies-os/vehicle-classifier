@@ -244,13 +244,13 @@ class Classifier(Service):
             # log inference result
             result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
             
-            # print(f"Remember to change base.py")
-            # result_key = list(result.keys())
-            # # randomly select one of the keys and set it to 0.999
-            # random_idx = np.random.randint(0, len(result_key))
-            # result[result_key[random_idx]] = 0.999
+            print(f"Remember to change base.py")
+            result_key = list(result.keys())
+            # randomly select one of the keys and set it to 0.999
+            random_idx = np.random.randint(0, len(result_key))
+            result[result_key[random_idx]] = 0.999
             
-            # print(result)
+            print(result)
             
             
             metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
