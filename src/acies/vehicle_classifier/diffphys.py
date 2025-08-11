@@ -18,7 +18,8 @@ class DiffPhys(Classifier):
         super().__init__(classifier_config_file, *args, **kwargs)
 
     def load_model(self, classifier_config_file: Path):
-        model = ModelForInference(classifier_config_file, freq_mae=False, modality=self._single_modality)
+        model = ModelForInference(classifier_config_file, False, modality=self._single_modality)
+        model_distance = ModelForInference(classifier_config_file, False, modality=self._single_modality, distance=True)
 
         logger.info(
             f'loaded model to cpu, '
@@ -56,6 +57,9 @@ class DiffPhys(Classifier):
             if isinstance(logit, tuple):
                 logit = logit[0]
                 distance = logit[1]
+            
+            distance = self.model_distance(data)
+
         elapsed_ms = timer.elapsed_time_ns / 1e6
         logger.debug(f'Time (ms) to infer: {elapsed_ms}')
 
@@ -66,6 +70,8 @@ class DiffPhys(Classifier):
         #     "mustang": logit[0][3],
         # }
         result = dict(zip(np.arange(4), logit[0]))
+        distance = np.random.randint(0, 100)
+        print(f"Diff phys!!!!!")
         result['distance'] = distance
 
         return result

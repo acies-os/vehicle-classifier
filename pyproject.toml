@@ -41,6 +41,7 @@ allow-direct-references = true
 # acies-neusymbolic-classifier = "acies.vehicle_classifier.neusymbolic:main"
 # acies-foundationsense-classifier = "acies.vehicle_classifier.foundationsense:main"
 acies-vfm = "acies.vehicle_classifier.vfm:main"
+acies-diffphys = "acies.vehicle_classifier.diffphys:main"
 acies-ds = "acies.vehicle_classifier.ds:main"
 acies-noise-detector = "acies.vehicle_classifier.noise_detector:main"
 

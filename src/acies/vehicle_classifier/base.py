@@ -65,7 +65,7 @@ def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
 
     pred = soft_vote(predictions)
     meta_data = [json.loads(x['metadata']) for x in data]
-    pred_distance = [x['pred_distance'] for x in meta_data]
+    pred_distance = [x['pred_distance'] for x in meta_data if 'pred_distance' in x] # only get non-None values
 
     infer_time_ms = [x['inference_time_ms'] for x in meta_data]
     infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
@@ -78,8 +78,10 @@ def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
         'inference_time_ms': infer_time_ms,
         'inputs': dict(inputs),
         'ensemble_size': len(data),
-        'pred_distance': pred_distance,
     }
+    
+    if len(pred_distance) > 0:
+        meta['pred_distance'] = pred_distance
     # logger.debug(f'DEV_DEBUG: {meta}')
     return pred, meta
 
@@ -231,10 +233,11 @@ class Classifier(Service):
             with TimeProfiler() as timer:
                 result = self.infer(samples)
             
-            distance = np.random.randint(0, 100)
             if 'distance' in result:
                 distance = result['distance']
                 del result['distance']
+            else:
+                distance = None
 
             infer_time_ms = timer.elapsed_time_ns / 1e6
 
@@ -250,7 +253,11 @@ class Classifier(Service):
             print(result)
             
             
-            metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data), 'pred_distance': distance}
+            metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
+            
+            if distance is not None:
+                metadata['pred_distance'] = distance
+
             msg = self.make_msg('json', result, metadata)
             log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')

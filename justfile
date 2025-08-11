@@ -37,9 +37,13 @@ mae-weight-mic := "models/gcq202410_mae_audio.pt"
 
 # ------------------------------ DiffPhys weights ------------------------------
 
-diffphys-weight-2 := "models/gcq202508_diffphys.pt"
-diffphys-weight-geo := "models/gcq202508_diffphys_seismic.pt"
-diffphys-weight-mic := "models/gcq202508_diffphys_audio.pt"
+# diffphys-weight-2 := "models/gcq202508_diffphys.pt"
+# diffphys-weight-geo := "models/gcq202508_diffphys_seismic.pt"
+# diffphys-weight-mic := "models/gcq202508_diffphys_audio.pt"
+
+diffphys-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcq202410_1.0_multiclasslatest.pt"
+diffphys-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_gcq202410_1.0_multiclasslatest.pt"
+diffphys-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_gcq202410_1.0_multiclasslatest.pt"
 
 # ------------------------------ Admin Utilities ------------------------------
 
@@ -189,7 +193,7 @@ mae-mic *FLAGS: echo-zrouter
 
 # launch a DiffPhys classifier
 diffphys *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug rye run acies-diffphys {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -201,7 +205,7 @@ diffphys *FLAGS: echo-zrouter
 
 # launch a DiffPhys-geo classifier
 diffphys-geo *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug rye run acies-diffphys {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
@@ -212,7 +216,7 @@ diffphys-geo *FLAGS: echo-zrouter
 
 # launch a DiffPhys-mic classifier
 diffphys-mic *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug rye run acies-diffphys {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
