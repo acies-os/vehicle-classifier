@@ -21,7 +21,7 @@ dependencies = [
     "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
 ]
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 
 [build-system]
 requires = ["hatchling"]
