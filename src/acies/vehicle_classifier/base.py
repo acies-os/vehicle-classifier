@@ -35,7 +35,14 @@ LABEL_TO_STR = {
 
 
 def soft_vote(pred_list: list[dict[str, float]]) -> dict[str, float]:
-    """Multi-label prediction soft voting."""
+    """Perform soft voting on a list of predictions.
+
+    Args:
+        pred_list (list[dict[str, float]]): List of prediction dictionaries.
+
+    Returns:
+        dict[str, float]: A dictionary with the mean prediction scores.
+    """
     if not pred_list:
         return {}
     sum_dict = defaultdict(float)
@@ -54,6 +61,20 @@ def soft_vote(pred_list: list[dict[str, float]]) -> dict[str, float]:
 
 
 def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
+    """Perform ensemble voting on the buffered predictions.
+
+    Args:
+        buff (EnsembleBuffer): A buffer containing the predictions to ensemble.
+        win (int): The time window (in seconds) to consider for ensembling.
+        size (int): The minimum number of predictions required for ensembling.
+        conf_thresh (dict): A dictionary of confidence thresholds for each class.
+
+    Raises:
+        ValueError: If there are not enough predictions for ensembling.
+
+    Returns:
+        tuple[dict[str, float], dict]: The ensemble prediction and metadata.
+    """
     now = int(time.time())
     oldest = now - win
     data = buff.get_range(oldest, now)
@@ -83,6 +104,14 @@ def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
 
 
 def time_diff_decorator(func):
+    """Decorator to log the time difference between consecutive calls to a function.
+
+    Args:
+        func (Callable): The function to decorate.
+
+    Returns:
+        Callable: The decorated function.
+    """
     last_call = {}
 
     @wraps(func)
@@ -100,7 +129,14 @@ def time_diff_decorator(func):
 
 
 def get_twin_topic(topic: str) -> str:
-    """Convert between physical and digital twin topic."""
+    """Convert between physical and digital twin topic.
+
+    Args:
+        topic (str): The topic to convert.
+
+    Returns:
+        str: The converted topic.
+    """
     if topic.startswith('twin/'):
         # twin/ns1/n1/ctrl -> ns1/n1/ctrl
         return topic.removeprefix('twin/')
@@ -110,6 +146,9 @@ def get_twin_topic(topic: str) -> str:
 
 
 class Classifier(Service):
+    """A template classifier for vehicle data.
+    This class should be subclassed and the `load_model` and `infer` methods implemented.
+    """
     def __init__(
         self,
         classifier_config_file,
@@ -120,6 +159,15 @@ class Classifier(Service):
         *args,
         **kwargs,
     ):
+        """Initialize the Classifier.
+
+        Args:
+            classifier_config_file (str): Path to the classifier configuration file.
+            twin_model (str): The digital twin model to use.
+            twin_buff_len (int): The buffer length for the digital twin.
+            sync_interval (int): The synchronization interval for the digital twin.
+            feature_twin (bool): Whether to use the digital twin features.
+        """
         # pass other args to parent type
         super().__init__(*args, **kwargs)
 
@@ -158,6 +206,12 @@ class Classifier(Service):
         self.model = self.load_model(classifier_config_file)
 
     def twin_init(self, twin_model, twin_buff_len):
+        """Initialize the digital twin.
+
+        Args:
+            twin_model (str): The digital twin model to use.
+            twin_buff_len (int): The buffer length for the digital twin.
+        """
         self.is_digital_twin = self.ctrl_topic.startswith('twin/')
         if self.is_digital_twin:
             logger.info('running as digital twin')
@@ -176,6 +230,12 @@ class Classifier(Service):
         self._sync_latest_lock = threading.Lock()
 
     def twin_sync_register(self, topic, msg):
+        """Register a message for synchronization with the digital twin.
+
+        Args:
+            topic (str): The topic of the message.
+            msg (AciesMsg): The message to register.
+        """
         with self._sync_latest_lock:
             self._sync_latest[topic] = msg
 
@@ -184,6 +244,17 @@ class Classifier(Service):
         raise NotImplementedError
 
     def combine_meta(self, meta_data: dict[str, dict[int, dict]]):
+        """Combine metadata from two topics.
+
+        Args:
+            meta_data (dict[str, dict[int, dict]]): The metadata to combine.
+
+        Raises:
+            IndexError: If the topic format is invalid.
+
+        Returns:
+            dict: The combined metadata.
+        """
         result = {'label': None, 'distance': None, 'mean_geo_energy': [], 'mean_mic_energy': []}
         oldest_key = 1e15
         for topic, topic_data in meta_data.items():
@@ -205,6 +276,14 @@ class Classifier(Service):
         return result
 
     def get_keys_per_node(self, modalities):
+        """Get the keys for each node based on the modalities.
+
+        Args:
+            modalities (list[str]): The list of modalities to consider.
+
+        Returns:
+            dict[str, list[str]]: A dictionary mapping each node to its keys.
+        """
         keys = list(self.buffer._data.keys())
         nodes = set()
         for k in keys:
@@ -258,6 +337,15 @@ class Classifier(Service):
                 self.temp_ensmeble(node, msg)
 
     def temp_ensmeble(self, node, msg):
+        """Perform temporal ensemble on the classification results.
+
+        Args:
+            node (str): The node name.
+            msg (Message): The message containing the classification results.
+
+        Raises:
+            ValueError: If the ensemble buffer is not sufficient.
+        """
         model_name = self.proc_name
         self.ensemble_buff_db.add_entry(
             node, model_name, int(msg.timestamp / 1e9), msg.get_payload(), msg.get_metadata()
@@ -285,6 +373,12 @@ class Classifier(Service):
             return
 
     def twin_temp_ensemble(self, node, msg):
+        """Perform temporal ensemble on the classification results.
+
+        Args:
+            node (str): The node name.
+            msg (Message): The message containing the classification results.
+        """
         self.ensemble_buff.add(msg)
         try:
             buff_len = int(self.service_states['twin/buff_len'])
@@ -315,6 +409,15 @@ class Classifier(Service):
             return
 
     def _log_inference_result(self, pred, confidence, one_meta, now, ensemble_size=None):
+        """Log the inference result.
+
+        Args:
+            pred (str): The predicted label.
+            confidence (float): The confidence score of the prediction.
+            one_meta (dict): The metadata for the current input.
+            now (float): The current timestamp.
+            ensemble_size (int, optional): The size of the ensemble. Defaults to None.
+        """
         latency = now - one_meta['oldest_timestamp']
         console_msg = f'detected {pred:<7} ({confidence:.4f}): '
 
@@ -344,6 +447,8 @@ class Classifier(Service):
         return np.concatenate(list(arrays.values()))
 
     def twin_sync(self):
+        """Synchronize the latest messages with the digital twin.
+        """
         if self.is_digital_twin:
             return
 
@@ -370,6 +475,8 @@ class Classifier(Service):
 
     # @time_diff_decorator
     def handle_message(self):
+        """Handle incoming messages from the message queue.
+        """
         try:
             topic, msg = self.msg_q.get_nowait()
             assert isinstance(msg, AciesMsg)
@@ -405,10 +512,14 @@ class Classifier(Service):
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
     def log_activate_status(self):
+        """Log the activation status.
+        """
         if self.service_states.get('deactivated', False):
             logger.debug('currently deactivated, standing by')
 
     def run(self):
+        """Run the main loop.
+        """
         self.schedule(2, self.log_activate_status, periodic=True)
         self.schedule(0.1, self.handle_message, periodic=True)
         self.schedule(1, self.run_inference, periodic=True)
