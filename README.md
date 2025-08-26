@@ -26,3 +26,9 @@ To see debug output, set the environment variable `ACIES_LOG` to desired level:
 ```shell
 $ ACIES_LOG=debug rye run acies-simple-classifier --help
 ```
+
+To build Sphinx documentation, run this command:
+
+```shell
+$ just doc
+```
