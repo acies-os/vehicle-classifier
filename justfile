@@ -335,3 +335,13 @@ launch-twins-modalities:
     nohup just ns={{ ns }} zrouter={{ zrouter }} twin-vfm multimodal 1 >/dev/null 2>&1 &
     nohup just ns={{ ns }} zrouter={{ zrouter }} twin-vfm seismic 1 >/dev/null 2>&1 &
     nohup just ns={{ ns }} zrouter={{ zrouter }} twin-vfm acoustic 1 >/dev/null 2>&1 &
+
+# Documentation directories
+
+DOCS_SOURCE := "docs"
+DOCS_BUILD := "build"
+
+# Build HTML docs with Sphinx
+doc:
+    sphinx-build -b html {{DOCS_SOURCE}} {{DOCS_BUILD}}/html
+    @echo "Docs built at {{DOCS_BUILD}}/html/index.html"
