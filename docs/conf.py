@@ -23,11 +23,6 @@ extensions = [
     "sphinx_autodoc_typehints",
 ]
 
-# Make your package importable
-import os, sys
-sys.path.insert(0, os.path.abspath("../.."))
-
-# Theme (pick one)
 html_theme = "pydata_sphinx_theme"
 # html_theme = "sphinx_rtd_theme"  # alternative
 
@@ -63,5 +58,5 @@ html_theme_options = {
     "navigation_depth": 3,
     "show_prev_next": False,
     "logo": {"text": "acies-vehicle-classifier"},
-    # "github_url": "https://github.com/your/repo",
+    #"github_url": "https://github.com/your/repo",
 }
