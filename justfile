@@ -343,7 +343,7 @@ DOCS_BUILD := "build"
 
 # Build HTML docs with Sphinx
 build-doc:
-    sphinx-build -b html {{DOCS_SOURCE}} {{DOCS_BUILD}}/html
+    rye run sphinx-build -b html {{DOCS_SOURCE}} {{DOCS_BUILD}}/html
     @echo "Docs built at {{DOCS_BUILD}}/html/index.html"
 
 # Open docs in a browser (Windows/mac/wsl compatible)
