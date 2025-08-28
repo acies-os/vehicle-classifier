@@ -8,6 +8,7 @@ default:
 clean:
     rm -f *.log
 
+RUNCMD := `command -v uv || command -v rye || (echo "Please install uv" >&2 && exit 1)`
 ns := `hostname -s`
 zrouter := '$ZROUTER'
 
@@ -97,7 +98,7 @@ echo-zrouter:
 
 # launch a VFM classifier
 nd win-size='30': echo-zrouter
-    LOGLEVEL=debug rye run acies-noise-detector \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-noise-detector \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -111,7 +112,7 @@ nd win-size='30': echo-zrouter
 
 # launch a VFM classifier
 vfm *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -123,7 +124,7 @@ vfm *FLAGS: echo-zrouter
 
 # launch a VFM-geo classifier
 vfm-geo *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
@@ -134,7 +135,7 @@ vfm-geo *FLAGS: echo-zrouter
 
 # launch a VFM-mic classifier
 vfm-mic *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
@@ -147,7 +148,7 @@ vfm-mic *FLAGS: echo-zrouter
 
 # launch a MAE classifier
 mae *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -159,7 +160,7 @@ mae *FLAGS: echo-zrouter
 
 # launch a MAE-geo classifier
 mae-geo *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
@@ -170,7 +171,7 @@ mae-geo *FLAGS: echo-zrouter
 
 # launch a MAE-mic classifier
 mae-mic *FLAGS: echo-zrouter
-    LOGLEVEL=debug rye run acies-vfm {{ FLAGS }} \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm {{ FLAGS }} \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect {{ zrouter }} \
     --namespace {{ ns }} \
@@ -183,7 +184,7 @@ mae-mic *FLAGS: echo-zrouter
 
 # launch a DeepSense classifier
 ds:
-    LOGLEVEL=debug rye run acies-ds \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-ds \
     --connect unixsock-stream//tmp/{{ ns }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -198,7 +199,7 @@ ds:
 
 # start a digital twin of the VFM classifier
 twin-vfm twin-model="multimodal" twin-buff-len="2":
-    LOGLEVEL=debug rye run acies-vfm \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm \
     --connect {{ zrouter }} \
     --namespace twin/{{ ns }} \
     --twin-model {{ twin-model }} \
@@ -206,7 +207,7 @@ twin-vfm twin-model="multimodal" twin-buff-len="2":
     --proc_name vfm_{{ twin-model }}_{{ twin-buff-len }} \
     --topic twin/{{ ns }}/geo \
     --topic twin/{{ ns }}/mic \
-    --weight {{ if twin-model == "multimodal" { vfm-weight-2 } else { if twin-model == "seismic" { vfm-weight-geo } else { if twin-model == "acoustic" { vfm-weight-mic } else { vfm-weight-2 } } } }}
+    --weight {{ if twin-model == "multimodal" { vfm-weight-2 } else if twin-model == "seismic" { vfm-weight-geo } else if twin-model == "acoustic" { vfm-weight-mic } else { vfm-weight-2 } }}
 
 # start a digital twin of the VFM classifier as background process
 nohup-twin-vfm twin-model="multimodal" twin-buff-len="2":
@@ -214,7 +215,7 @@ nohup-twin-vfm twin-model="multimodal" twin-buff-len="2":
 
 # launch a backup VFM classifier
 backup-vfm ns_primary:
-    LOGLEVEL=debug rye run acies-vfm \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm \
     --connect unixsock-stream//tmp/{{ ns_primary }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns_primary }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -227,7 +228,7 @@ backup-vfm ns_primary:
 
 # launch a backup VFM-geo classifier
 backup-vfm-geo ns_primary:
-    LOGLEVEL=debug rye run acies-vfm \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm \
     --connect unixsock-stream//tmp/{{ ns_primary }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns_primary }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -241,7 +242,7 @@ backup-vfm-geo ns_primary:
 
 # launch a backup VFM-mic classifier
 backup-vfm-mic ns_primary:
-    LOGLEVEL=debug rye run acies-vfm \
+    LOGLEVEL=debug {{ RUNCMD }} run acies-vfm \
     --connect unixsock-stream//tmp/{{ ns_primary }}_acies-mic.sock \
     --connect unixsock-stream//tmp/{{ ns_primary }}_acies-geo.sock \
     --connect {{ zrouter }} \
@@ -343,8 +344,8 @@ DOCS_BUILD := "build"
 
 # Build HTML docs with Sphinx
 build-doc:
-    rye run sphinx-build -b html {{DOCS_SOURCE}} {{DOCS_BUILD}}/html
-    @echo "Docs built at {{DOCS_BUILD}}/html/index.html"
+    {{ RUNCMD }} run sphinx-build -b html {{ DOCS_SOURCE }} {{ DOCS_BUILD }}/html
+    @echo "Docs built at {{ DOCS_BUILD }}/html/index.html"
 
 # Open docs in a browser (Windows/mac/wsl compatible)
 view-doc:
@@ -353,4 +354,4 @@ view-doc:
         || powershell.exe -NoProfile start http://localhost:8000 \
         || open http://localhost:8000 \
         || true) &
-    python3 -m http.server -d {{DOCS_BUILD}}/html 8000
+    python3 -m http.server -d {{ DOCS_BUILD }}/html 8000
