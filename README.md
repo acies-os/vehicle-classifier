@@ -10,6 +10,28 @@ $ cd acies-vehicle-classifier
 $ rye sync
 ```
 
+## Documentation
+The documentation is managed using **Sphinx**, which fetch docstring comments from code and compile them into html pages.
+
+Sphinx sources live in the `docs/` folder:
+
+- `conf.py` — Sphinx configuration
+- `*.rst` files — reStructuredText source documents that define docs content
+
+To build Sphinx documentation, run this command:
+
+```shell
+$ just build-doc
+```
+
+Now the built documentation should live in `build/` folder.
+
+To view the documentation in browser, run this command:
+
+```shell
+$ just view-doc
+```
+
 ## Usage
 
 There are 4 classifiers, to see their help message:
@@ -27,8 +49,3 @@ To see debug output, set the environment variable `ACIES_LOG` to desired level:
 $ ACIES_LOG=debug rye run acies-simple-classifier --help
 ```
 
-To build Sphinx documentation, run this command:
-
-```shell
-$ just doc
-```
