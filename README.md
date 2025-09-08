@@ -22,7 +22,7 @@ For backward compatibility, you may also install [rye](https://rye.astral.sh/gui
 ### Clone and install dependencies
 
 ```shell
-$ git@github.com:acies-os/vehicle-classifier.git
+$ git clone git@github.com:acies-os/vehicle-classifier.git
 $ cd vehicle-classifier
 vehicle-classifier$ uv sync
  
