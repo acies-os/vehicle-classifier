@@ -59,14 +59,17 @@ $ just view-doc
 
 ## Download Model Weights
 
-To download model weights, either download the `.pt` files yourself from github release page to `models/` folder, or use `wget` to download automatically:
+Place the weight files under `models/`. You can either download them from the
+[GitHub release](https://github.com/acies-os/vehicle-classifier/releases/tag/weight-v1.0.0)
+or pull them directly with `wget`.
+
 
 ```bash
-# in root folder
+# in repo's root folder
 vehicle-classifier$ cd models/
 
+# you can also use curl, just replace `wget` with `curl -LO`
 vehicle-classifier/models$ wget https://github.com/acies-os/vehicle-classifier/releases/download/weight-v1.0.0/gcq202410_mae.pt
-
 vehicle-classifier/models$ wget https://github.com/acies-os/vehicle-classifier/releases/download/weight-v1.0.0/Parkland_TransformerV4_vehicle_classification_finetune_gcq202410_1.0_multiclasslatest.pt
 ```
 
