@@ -59,13 +59,6 @@ $ just vfm
 $ just mae
 ```
 
-To see debug output, set the environment variable `ACIES_LOG` to desired level:
-
-```shell
-$ ACIES_LOG=debug rye run acies-simple-classifier --help
-```
-
-
 ## Documentation
 
 The documentation is managed using **Sphinx**, which fetch docstring comments from code and compile them into html pages.
