@@ -2,15 +2,72 @@
 
 Acoustic- and seismic-based vehicle classifiers.
 
-## Install
+## Setup
 
-```shell
-$ git clone git@github.com:acies-os/acies-vehicle-classifier.git
-$ cd acies-vehicle-classifier
-$ rye sync
+### Python Environment Management
+
+This project uses [`uv`](https://docs.astral.sh/uv) (or its predecessor [`rye`](https://rye.astral.sh)) to manage the Python environment.
+
+To check if `rye` is already installed, run:
+
+```bash
+which rye
 ```
 
+- If the command prints a path, `rye` is available and you can skip this step.
+- If not, we recommend installing `uv` for new setups. Follow [uv’s official installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+
+For backward compatibility, you may also install [rye](https://rye.astral.sh/guide/installation/).
+
+### Clone and install dependencies
+
+```shell
+$ git clone git@github.com:acies-os/vehicle-classifier.git
+$ cd vehicle-classifier
+vehicle-classifier$ uv sync
+ 
+# or, if using rye
+vehicle-classifier$ rye sync
+```
+
+### Install `just`
+
+Install `just` use [your package manager](https://just.systems/man/en/packages.html) or [pre-built binary](https://just.systems/man/en/pre-built-binaries.html).
+
+## Download Model Weights
+
+Place the weight files under `models/`. You can either download them from the
+[GitHub release](https://github.com/acies-os/vehicle-classifier/releases/tag/weight-v1.0.0)
+or pull them directly with `wget`.
+
+
+```bash
+# in repo's root folder
+vehicle-classifier$ cd models/
+
+# you can also use curl, just replace `wget` with `curl -LO`
+vehicle-classifier/models$ wget https://github.com/acies-os/vehicle-classifier/releases/download/weight-v1.0.0/gcq202410_mae.pt
+vehicle-classifier/models$ wget https://github.com/acies-os/vehicle-classifier/releases/download/weight-v1.0.0/Parkland_TransformerV4_vehicle_classification_finetune_gcq202410_1.0_multiclasslatest.pt
+```
+
+## Usage
+
+There are 2 classifiers, to run them:
+
+```shell
+$ just vfm
+$ just mae
+```
+
+To see debug output, set the environment variable `ACIES_LOG` to desired level:
+
+```shell
+$ ACIES_LOG=debug rye run acies-simple-classifier --help
+```
+
+
 ## Documentation
+
 The documentation is managed using **Sphinx**, which fetch docstring comments from code and compile them into html pages.
 
 Sphinx sources live in the `docs/` folder:
@@ -31,21 +88,3 @@ To view the documentation in browser, run this command:
 ```shell
 $ just view-doc
 ```
-
-## Usage
-
-There are 4 classifiers, to see their help message:
-
-```shell
-$ rye run acies-simple-classifier --help
-$ rye run acies-deepsense-classifier --help
-$ rye run acies-neusymbolic-classifier --help
-$ rye run acies-foundationsense-classifier --help
-```
-
-To see debug output, set the environment variable `ACIES_LOG` to desired level:
-
-```shell
-$ ACIES_LOG=debug rye run acies-simple-classifier --help
-```
-
