@@ -34,29 +34,6 @@ vehicle-classifier$ rye sync
 
 Install `just` use [your package manager](https://just.systems/man/en/packages.html) or [pre-built binary](https://just.systems/man/en/pre-built-binaries.html).
 
-## Documentation
-
-The documentation is managed using **Sphinx**, which fetch docstring comments from code and compile them into html pages.
-
-Sphinx sources live in the `docs/` folder:
-
-- `conf.py` — Sphinx configuration
-- `*.rst` files — reStructuredText source documents that define docs content
-
-To build Sphinx documentation, run this command:
-
-```shell
-$ just build-doc
-```
-
-Now the built documentation should live in `build/` folder.
-
-To view the documentation in browser, run this command:
-
-```shell
-$ just view-doc
-```
-
 ## Download Model Weights
 
 Place the weight files under `models/`. You can either download them from the
@@ -88,3 +65,26 @@ To see debug output, set the environment variable `ACIES_LOG` to desired level:
 $ ACIES_LOG=debug rye run acies-simple-classifier --help
 ```
 
+
+## Documentation
+
+The documentation is managed using **Sphinx**, which fetch docstring comments from code and compile them into html pages.
+
+Sphinx sources live in the `docs/` folder:
+
+- `conf.py` — Sphinx configuration
+- `*.rst` files — reStructuredText source documents that define docs content
+
+To build Sphinx documentation, run this command:
+
+```shell
+$ just build-doc
+```
+
+Now the built documentation should live in `build/` folder.
+
+To view the documentation in browser, run this command:
+
+```shell
+$ just view-doc
+```
