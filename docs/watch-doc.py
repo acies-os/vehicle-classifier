@@ -9,7 +9,8 @@ if __name__ == '__main__':
     svr = Server()
 
     # command to rebuild the docs
-    refresh_docs = shell('just build-doc')
+    # refresh_docs = shell('just build-doc')
+    refresh_docs = shell('uv run sphinx-build -b html docs/source docs/_build')
 
     # watch for source file changes and trigger rebuild/refresh
     svr.watch('**/*.py', refresh_docs, delay=1)
@@ -20,4 +21,4 @@ if __name__ == '__main__':
     #     svr.watch(f'source/{path}/*', refresh_docs, delay=1)
 
     # path from which to serve the docs
-    svr.serve(root='_build')
+    svr.serve(root='docs/_build')

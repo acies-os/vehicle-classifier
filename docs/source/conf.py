@@ -50,6 +50,7 @@ napoleon_use_rtype = True
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
+    'torch': ('https://pytorch.org/docs/stable/', None),
 }
 
 # PyData theme options (nice sidebar + GitHub link)

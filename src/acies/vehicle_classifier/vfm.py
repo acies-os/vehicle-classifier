@@ -14,13 +14,17 @@ logger = logging.getLogger('acies.infer')
 
 
 class VibroFM(Classifier):
-    def __init__(self, modality, classifier_config_file, *args, **kwargs):
-        """
-        Initialize the VibroFM classifier.
+    """Vibration Foundation Model."""
 
-        Args:
-            modality (str): The modality to use (e.g., 'seismic', 'audio').
-            classifier_config_file (Path): The path to the classifier configuration file.
+    def __init__(self, modality, classifier_config_file, *args, **kwargs):
+        """Initialize the VibroFM classifier.
+
+        Parameters
+        ----------
+        modality : str
+            The modality to use (e.g., 'seismic', 'audio').
+        classifier_config_file : :class:`pathlib.Path`
+            The path to the classifier configuration file.
         """
         self._single_modality = modality
         super().__init__(classifier_config_file, *args, **kwargs)
@@ -28,11 +32,15 @@ class VibroFM(Classifier):
     def load_model(self, classifier_config_file: Path):
         """Load the model for inference.
 
-        Args:
-            classifier_config_file (Path): The path to the classifier configuration file.
+        Parameters
+        ----------
+        classifier_config_file : :class:`pathlib.Path`
+            The path to the classifier configuration file.
 
-        Returns:
-            ModelForInference: The loaded model.
+        Returns
+        -------
+        torch.nn.Module
+            The loaded model.
         """
         freq_mae = True if 'mae' in self.proc_name else False
         model = ModelForInference(classifier_config_file, freq_mae, modality=self._single_modality)
@@ -52,11 +60,15 @@ class VibroFM(Classifier):
     def infer(self, samples: dict[str, dict[int, np.ndarray]]):
         """Run inference on the provided samples.
 
-        Args:
-            samples (dict[str, dict[int, np.ndarray]]): The input samples for inference.
+        Parameters
+        ----------
+        samples : dict[str, dict[int, numpy.ndarray]]
+            The input samples for inference.
 
-        Returns:
-            dict[str, float]: The inference results.
+        Returns
+        -------
+        dict[str, float]
+            The inference results.
         """
         arrays = {k: self.concat(v) for k, v in samples.items()}
         arrays = {k.split('/')[-1]: v for k, v in arrays.items()}

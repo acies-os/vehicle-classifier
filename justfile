@@ -348,7 +348,8 @@ build-doc:
     @echo "Docs built at docs/{{ DOCS_BUILD }}/index.html"
 
 live-doc:
-    cd docs && {{ RUNCMD }} run watch-doc.py
+    echo $PWD
+    {{ RUNCMD }} run docs/watch-doc.py
 
 # Open docs in a browser (Windows/mac/wsl compatible)
 view-doc:
