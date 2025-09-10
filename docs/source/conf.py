@@ -17,7 +17,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
+    # 'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinx_autodoc_typehints',
@@ -54,11 +54,12 @@ intersphinx_mapping = {
 }
 
 # PyData theme options (nice sidebar + GitHub link)
+html_show_sourcelink = False
 html_theme_options = {
     'navigation_depth': 4,
     'show_prev_next': False,
     'logo': {'text': 'acies-vehicle-classifier'},
-    # "github_url": "https://github.com/your/repo",
+    'github_url': 'https://github.com/acies-os/vehicle-classifier',
     'show_toc_level': 3,
 }
 

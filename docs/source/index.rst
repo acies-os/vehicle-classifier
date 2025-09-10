@@ -6,6 +6,9 @@
 Acies Vehicle Classifier
 ========================
 
+Introduction
+------------
+
 A real-time vehicle classification system that processes multimodal sensor data
 (seismic and acoustic) to identify vehicles using foundation models. The system
 supports digital twin synchronization, temporal ensemble voting, and distributed
@@ -43,9 +46,12 @@ and fine-tuned model weights from [Kimura2024]_ and [Kara2024]_, compatible with
 VibroFM, are available on the `GitHub release page
 <https://github.com/acies-os/vehicle-classifier/releases>`_.
 
+API
+---
+
 .. toctree::
    :maxdepth: 3
-   :caption: API
+   :caption: Content
 
    api
 
