@@ -357,4 +357,4 @@ view-doc:
         || powershell.exe -NoProfile start http://localhost:8000 \
         || open http://localhost:8000 \
         || true) &
-    python3 -m http.server -d {{ DOCS_BUILD }} 8000
+    python3 -m http.server -d docs/{{ DOCS_BUILD }} 8000
