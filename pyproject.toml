@@ -16,9 +16,7 @@ dependencies = [
     "acies @ https://github.com/acies-os/acies-os/releases/download/v0.2.2/acies-0.2.2-cp38-abi3-manylinux_2_34_aarch64.whl ; platform_system == 'Linux' and platform_machine == 'aarch64'",
     "acies @ https://github.com/acies-os/acies-os/releases/download/v0.2.2/acies-0.2.2-cp38-abi3-manylinux_2_34_x86_64.whl ; platform_system == 'Linux' and platform_machine == 'x86_64'",
     "acies-buffers @ git+ssh://github.com/acies-os/buffers.git",
-    # "vehicle-detection-baselines @ git+ssh://github.com/acies-os/vehicle-detection-baselines.git",
     "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
-    # "neusymbolic @ git+ssh://github.com/acies-os/neural-symbolic.git",
     "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
 ]
 readme = "README.md"
@@ -30,17 +28,11 @@ build-backend = "hatchling.build"
 
 [tool.rye]
 managed = true
-dev-dependencies = []
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [project.scripts]
-# acies-base-classifier = "acies.vehicle_classifier.base:main"
-# acies-simple-classifier = "acies.vehicle_classifier.simple:main"
-# acies-deepsense-classifier = "acies.vehicle_classifier.deepsense:main"
-# acies-neusymbolic-classifier = "acies.vehicle_classifier.neusymbolic:main"
-# acies-foundationsense-classifier = "acies.vehicle_classifier.foundationsense:main"
 acies-vfm = "acies.vehicle_classifier.vfm:main"
 acies-ds = "acies.vehicle_classifier.ds:main"
 acies-noise-detector = "acies.vehicle_classifier.noise_detector:main"
@@ -57,9 +49,10 @@ lint.mccabe = { max-complexity = 13 }
 format = { quote-style = 'single' }
 
 [dependency-groups]
-dev = [
+docs = [
+    "livereload>=2.7.1",
     "pydata-sphinx-theme>=0.16.1",
-    "sphinx>=8.1.3",
     "sphinx-autodoc-typehints>=3.0.1",
     "sphinx-copybutton>=0.5.2",
+    "sphinx>=8.1.3",
 ]

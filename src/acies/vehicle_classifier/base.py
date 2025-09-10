@@ -208,12 +208,6 @@ class Classifier(Service):
         self.model = self.load_model(classifier_config_file)
 
     def twin_init(self, twin_model, twin_buff_len):
-        """Initialize the digital twin.
-
-        Args:
-            twin_model (str): The digital twin model to use.
-            twin_buff_len (int): The buffer length for the digital twin.
-        """
         self.is_digital_twin = self.ctrl_topic.startswith('twin/')
         if self.is_digital_twin:
             logger.info('running as digital twin')
@@ -232,12 +226,6 @@ class Classifier(Service):
         self._sync_latest_lock = threading.Lock()
 
     def twin_sync_register(self, topic, msg):
-        """Register a message for synchronization with the digital twin.
-
-        Args:
-            topic (str): The topic of the message.
-            msg (AciesMsg): The message to register.
-        """
         with self._sync_latest_lock:
             self._sync_latest[topic] = msg
 
@@ -375,12 +363,6 @@ class Classifier(Service):
             return
 
     def twin_temp_ensemble(self, node, msg):
-        """Perform temporal ensemble on the classification results.
-
-        Args:
-            node (str): The node name.
-            msg (Message): The message containing the classification results.
-        """
         self.ensemble_buff.add(msg)
         try:
             buff_len = int(self.service_states['twin/buff_len'])
@@ -439,22 +421,48 @@ class Classifier(Service):
             console_msg += f' Ensemble={ensemble_size}'
         logger.info(console_msg)
 
-    def infer(self, samples):
-        """Inference method that must be implemented by concrete classifiers.
-        The scheduler periodically invokes this method on incoming samples.
+    def infer(self, samples: dict[str, dict[int, np.ndarray]]):
+        """
+        Perform inference on incoming samples.
 
-        Sample example:
+        This method must be implemented by concrete classifiers.
+        The scheduler periodically invokes it with new data.
 
-        samples = {
-            'dvpg-gq-1-shake/geo': {
-                1757515699: array([16961, 16907, ..., 16551, 16370]),
-                1757515700: array([16217, 16418, ..., 16913, 16799]),
-            },
-            'dvpg-gq-1-shake/mic': {
-                1757515699: array([-62, -51, -63, ..., 182, 207, 178]),
-                1757515700: array([194, 210, 174, ..., 233, 247, 210]),
-            },
-        }
+        Parameters
+        ----------
+        samples : dict[str, dict[int, numpy.ndarray]]
+            Nested mapping of time-series data.
+
+            - Keys (``str``): Topic name, such as ``rs1/mic`` or ``rs1/geo``.
+            - Values (``dict``): Data received from that topic.
+                - Keys (``int``): Unix timestamp in seoncds.
+                - Values (``numpy.ndarray``): One-dimensional arrays containing the raw samples
+                  recorded during that second.
+
+            Example
+            -------
+            .. code-block:: python
+
+                samples = {
+                    "rs1-1/geo": {
+                        1757515699: array([16961, 16907, ..., 16551, 16370]),
+                        1757515700: array([16217, 16418, ..., 16913, 16799]),
+                    },
+                    "rs-1/mic": {
+                        1757515699: array([-62, -51, -63, ..., 182, 207, 178]),
+                        1757515700: array([194, 210, 174, ..., 233, 247, 210]),
+                    },
+                }
+
+        Returns
+        -------
+        Any
+            Inference results produced by the classifier.
+
+        Raises
+        ------
+        NotImplementedError
+            If the subclass does not override this method.
         """
         raise NotImplementedError()
 
@@ -465,7 +473,6 @@ class Classifier(Service):
         return np.concatenate(list(arrays.values()))
 
     def twin_sync(self):
-        """Synchronize the latest messages with the digital twin."""
         if self.is_digital_twin:
             return
 

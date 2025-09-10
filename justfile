@@ -339,13 +339,16 @@ launch-twins-modalities:
 
 # Documentation directories
 
-DOCS_SOURCE := "docs"
-DOCS_BUILD := "build"
+DOCS_SOURCE := "source"
+DOCS_BUILD := "_build"
 
 # Build HTML docs with Sphinx
 build-doc:
-    {{ RUNCMD }} run sphinx-build -b html {{ DOCS_SOURCE }} {{ DOCS_BUILD }}/html
-    @echo "Docs built at {{ DOCS_BUILD }}/html/index.html"
+    cd docs && {{ RUNCMD }} run sphinx-build -b html {{ DOCS_SOURCE }} {{ DOCS_BUILD }}
+    @echo "Docs built at docs/{{ DOCS_BUILD }}/index.html"
+
+live-doc:
+    cd docs && {{ RUNCMD }} run watch-doc.py
 
 # Open docs in a browser (Windows/mac/wsl compatible)
 view-doc:
@@ -354,4 +357,4 @@ view-doc:
         || powershell.exe -NoProfile start http://localhost:8000 \
         || open http://localhost:8000 \
         || true) &
-    python3 -m http.server -d {{ DOCS_BUILD }}/html 8000
+    python3 -m http.server -d {{ DOCS_BUILD }} 8000
