@@ -2,6 +2,20 @@
 
 Acoustic- and seismic-based vehicle classifiers.
 
+If you use this repository in your research, please cite our accompanying paper
+to acknowledge the work. You can do so with the following BibTeX entry:
+
+```bibtex
+@inproceedings{li2024aciesos,
+  title={Acies-OS: A Content-Centric Platform for Edge AI Twinning and Orchestration},
+  author={Li, Jinyang and Chen, Yizhuo and Kimura, Tomoyoshi and et al.},
+  booktitle={2024 33rd International Conference on Computer Communications and Networks (ICCCN)},
+  pages={1--1},
+  year={2024},
+  organization={IEEE}
+}
+```
+
 ## Setup
 
 ### Python Environment Management
@@ -25,7 +39,7 @@ For backward compatibility, you may also install [rye](https://rye.astral.sh/gui
 $ git clone git@github.com:acies-os/vehicle-classifier.git
 $ cd vehicle-classifier
 vehicle-classifier$ uv sync
- 
+
 # or, if using rye
 vehicle-classifier$ rye sync
 ```
