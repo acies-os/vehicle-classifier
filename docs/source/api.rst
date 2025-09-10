@@ -2,7 +2,7 @@ API Reference
 =============
 
 .. autosummary::
-    :toctree: _api
+    :toctree: api
     :recursive:
 
     acies.vehicle_classifier.base
