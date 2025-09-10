@@ -10,6 +10,7 @@ from pathlib import Path
 
 import click
 import numpy as np
+
 from acies.buffers import EnsembleBuffer
 from acies.core import AciesMsg, Service, common_options, get_zconf, init_logger, pretty
 from acies.vehicle_classifier.buffer import StreamBuffer, TemporalEnsembleBuff
@@ -149,6 +150,7 @@ class Classifier(Service):
     """A template classifier for vehicle data.
     This class should be subclassed and the `load_model` and `infer` methods implemented.
     """
+
     def __init__(
         self,
         classifier_config_file,
@@ -438,6 +440,22 @@ class Classifier(Service):
         logger.info(console_msg)
 
     def infer(self, samples):
+        """Inference method that must be implemented by concrete classifiers.
+        The scheduler periodically invokes this method on incoming samples.
+
+        Sample example:
+
+        samples = {
+            'dvpg-gq-1-shake/geo': {
+                1757515699: array([16961, 16907, ..., 16551, 16370]),
+                1757515700: array([16217, 16418, ..., 16913, 16799]),
+            },
+            'dvpg-gq-1-shake/mic': {
+                1757515699: array([-62, -51, -63, ..., 182, 207, 178]),
+                1757515700: array([194, 210, 174, ..., 233, 247, 210]),
+            },
+        }
+        """
         raise NotImplementedError()
 
     @staticmethod
@@ -447,8 +465,7 @@ class Classifier(Service):
         return np.concatenate(list(arrays.values()))
 
     def twin_sync(self):
-        """Synchronize the latest messages with the digital twin.
-        """
+        """Synchronize the latest messages with the digital twin."""
         if self.is_digital_twin:
             return
 
@@ -475,8 +492,7 @@ class Classifier(Service):
 
     # @time_diff_decorator
     def handle_message(self):
-        """Handle incoming messages from the message queue.
-        """
+        """Handle incoming messages from the message queue."""
         try:
             topic, msg = self.msg_q.get_nowait()
             assert isinstance(msg, AciesMsg)
@@ -512,14 +528,12 @@ class Classifier(Service):
             logger.info(f'unhandled msg received at topic {topic}: {msg}')
 
     def log_activate_status(self):
-        """Log the activation status.
-        """
+        """Log the activation status."""
         if self.service_states.get('deactivated', False):
             logger.debug('currently deactivated, standing by')
 
     def run(self):
-        """Run the main loop.
-        """
+        """Run the main loop."""
         self.schedule(2, self.log_activate_status, periodic=True)
         self.schedule(0.1, self.handle_message, periodic=True)
         self.schedule(1, self.run_inference, periodic=True)
