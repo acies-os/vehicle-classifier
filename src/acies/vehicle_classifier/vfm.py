@@ -4,6 +4,7 @@ from pathlib import Path
 import click
 import numpy as np
 import torch
+
 from acies.core import common_options, get_zconf, init_logger
 from acies.FoundationSense.inference import ModelForInference
 from acies.vehicle_classifier.base import Classifier
