@@ -32,6 +32,15 @@ jobs:
           # Preload GitHub's SSH host key
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
+          # SSH config: use the key for github.com, force the 'git' user, and only that identity
+          cat > ~/.ssh/config << 'EOF'
+          Host github.com
+            HostName github.com
+            User git
+            IdentityFile ~/.ssh/id_rsa
+            IdentitiesOnly yes
+          EOF
+
           # Rewrite https://github.com/... to ssh://git@github.com/...
           git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
 
