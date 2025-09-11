@@ -49,7 +49,8 @@ VibroFM, are available on the `GitHub release page
 Implement A New Classifier
 --------------------------
 
-Assume the repository is set up as follows
+You can clone the repository wherever you prefer — in this guide, we'll use ``/ws/acies`` as an example.
+Assume the repository is set up as follows:
 
 .. code-block:: bash
 
