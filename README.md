@@ -54,7 +54,6 @@ Place the weight files under `models/`. You can either download them from the
 [GitHub release](https://github.com/acies-os/vehicle-classifier/releases/tag/weight-v1.0.0)
 or pull them directly with `wget`.
 
-
 ```bash
 # in repo's root folder
 vehicle-classifier$ cd models/
@@ -69,15 +68,18 @@ vehicle-classifier/models$ wget https://github.com/acies-os/vehicle-classifier/r
 There are 2 classifiers, to run them:
 
 ```shell
-$ just vfm
-$ just mae
+# VibroFM
+just vfm
+
+# FreqMAE
+just mae
 ```
 
 ## Documentation
 
 The documentation is managed using **Sphinx**, which fetch docstring comments from code and compile them into html pages.
 
-Sphinx sources live in the `docs/` folder:
+Sphinx sources live in the `docs/source/` folder:
 
 - `conf.py` — Sphinx configuration
 - `*.rst` files — reStructuredText source documents that define docs content
@@ -85,13 +87,13 @@ Sphinx sources live in the `docs/` folder:
 To build Sphinx documentation, run this command:
 
 ```shell
-$ just build-doc
+just build-doc
 ```
 
-Now the built documentation should live in `build/` folder.
+Now the built documentation should live in `docs/_build/` folder.
 
 To view the documentation in browser, run this command:
 
 ```shell
-$ just view-doc
+just view-doc
 ```
