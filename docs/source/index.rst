@@ -46,6 +46,44 @@ and fine-tuned model weights from [Kimura2024]_ and [Kara2024]_, compatible with
 VibroFM, are available on the `GitHub release page
 <https://github.com/acies-os/vehicle-classifier/releases>`_.
 
+Implement A New Classifier
+--------------------------
+
+Assume the repository is set up as follows
+
+.. code-block:: bash
+
+    $ cd /ws/acies/
+    /ws/acies$ git clone git@github.com:acies-os/vehicle-classifier.git
+    /ws/acies$ cd vehicle-classifier
+    /ws/acies/vehicle-classifier$ uv sync
+
+To create a new classifier, follow these steps:
+
+1. **Copy the example template** to create your new classifier file:
+
+.. code-block:: bash
+
+    vehicle-classifier$ cp src/acies/vehicle_classifier/example.py src/acies/vehicle_classifier/my_classifier.py
+
+2. **Implement the required methods** in your new classifier file:
+
+   - ``load_model()``: Load your model and set ``self.modalities``
+   - ``infer()``: Perform inference on sensor data and return class probabilities
+
+3. **Add an entry** to ``pyproject.toml`` under ``[project.scripts]``:
+
+.. code-block:: toml
+
+    [project.scripts]
+    my-clf = "acies.vehicle_classifier.my_classifier:main"
+
+4. **Run your new classifier** using uv:
+
+.. code-block:: bash
+
+    vehicle-classifier$ uv run my-clf --weight /path/to/config --namespace ns1 --proc-name clf1
+
 API
 ---
 
