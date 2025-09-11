@@ -11,8 +11,8 @@ Introduction
 
 A real-time vehicle classification system that processes multimodal sensor data
 (seismic and acoustic) to identify vehicles using foundation models. The system
-supports digital twin synchronization, temporal ensemble voting, and distributed
-processing through the Acies messaging framework.
+supports state synchronization, temporal ensemble voting, and distributed
+processing through the AciesOS middleware.
 
 The :class:`~acies.vehicle_classifier.base.Classifier` class implements core
 infrastructure including: stream data buffering to accumulate sensor readings
