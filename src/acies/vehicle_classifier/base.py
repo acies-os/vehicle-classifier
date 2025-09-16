@@ -333,13 +333,12 @@ class Classifier(Service):
             
             if representation is not None:
                 # publish representation to spar channel
-                result = {"representation": representation}
+                result = {"representation": representation[0]}
                 metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
                 msg = self.make_msg('json', result, metadata)
                 
                 topic_to = f'{node}/spar'
                 self.send(topic_to, msg)
-                logger.debug(f'>>>>> {topic_to} [representation]: {msg}')
 
     def temp_ensmeble(self, node, msg):
         """Perform temporal ensemble on the classification results.

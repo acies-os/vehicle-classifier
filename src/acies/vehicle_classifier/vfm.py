@@ -94,6 +94,7 @@ class VibroFM(Classifier):
 
         if isinstance(logit, tuple):
             logit, representation = logit
+            print(f"Representation shape: {representation.shape}")
             representation = representation.detach().numpy().tolist()
         else:
             representation = None
