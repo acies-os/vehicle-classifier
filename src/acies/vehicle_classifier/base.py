@@ -298,6 +298,11 @@ class Classifier(Service):
             with TimeProfiler() as timer:
                 result = self.infer(samples)
             infer_time_ms = timer.elapsed_time_ns / 1e6
+            
+            if isinstance(result, tuple):
+                result, representation = result
+            else:
+                representation = None
 
             # log inference result
             result = {LABEL_TO_STR[k]: v.item() for k, v in result.items()}
@@ -325,6 +330,16 @@ class Classifier(Service):
             else:
                 # self.send(self.pub_topic, msg)
                 self.temp_ensmeble(node, msg)
+            
+            if representation is not None:
+                # publish representation to spar channel
+                result = {"representation": representation}
+                metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
+                msg = self.make_msg('json', result, metadata)
+                
+                topic_to = f'{node}/spar'
+                self.send(topic_to, msg)
+                logger.debug(f'>>>>> {topic_to} [representation]: {msg}')
 
     def temp_ensmeble(self, node, msg):
         """Perform temporal ensemble on the classification results.

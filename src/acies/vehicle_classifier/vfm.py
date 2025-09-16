@@ -92,15 +92,13 @@ class VibroFM(Classifier):
         elapsed_ms = timer.elapsed_time_ns / 1e6
         logger.debug(f'Time (ms) to infer: {elapsed_ms}')
 
-        # result = {
-        #     "gle350": logit[0][0],
-        #     "miata": logit[0][1],
-        #     "cx30": logit[0][2],
-        #     "mustang": logit[0][3],
-        # }
+        if isinstance(logit, tuple):
+            logit, representation = logit
+            representation = representation.detach().numpy().tolist()
+        else:
+            representation = None
         result = dict(zip(np.arange(4), logit[0]))
-
-        return result
+        return (result, representation)
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
