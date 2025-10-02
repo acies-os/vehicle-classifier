@@ -336,6 +336,7 @@ class Classifier(Service):
                 result = {"representation": representation[0]}
                 metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
                 msg = self.make_msg('json', result, metadata)
+                logger.debug(f'representation: {representation[0].shape}')
                 
                 topic_to = f'{node}/spar'
                 self.send(topic_to, msg)
