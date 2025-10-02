@@ -26,7 +26,7 @@ zrouter := '$ZROUTER'
 #vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_ictexclusive_1.0_multiclasslatest.pt"
 #vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_ictexclusive_1.0_multiclasslatest.pt"
 
-vfm-weight-2 := "models/Parkland_TransformerV4_pretrain_latest.pt"
+vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_multiclassbest.pt"
 vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_gcq202410_1.0_multiclasslatest.pt"
 vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_gcq202410_1.0_multiclasslatest.pt"
 
