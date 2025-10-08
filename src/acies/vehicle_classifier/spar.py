@@ -4,9 +4,9 @@ from pathlib import Path
 import click
 import numpy as np
 import torch
-import librosa
 from acies.core import common_options, get_zconf, init_logger
 from acies.SPAR.inference import ModelForInference
+from acies.SPAR.input_utils.augmented_dataset import process_data
 from acies.vehicle_classifier.base import Classifier
 from acies.vehicle_classifier.utils import TimeProfiler, count_elements, update_sys_argv
 
@@ -28,89 +28,22 @@ class SPAR(Classifier):
             f'#elements={count_elements(model)}'
         )
 
-        self.modalities = model.args.dataset_config['modalities']
-        _mapping = {
-            'seismic': 'geo',
-            'acoustic': 'mic',
-            'audio': 'mic',
-            'sei': 'geo',
-            'aco': 'mic',
-        }
-        self.modalities = [_mapping[x] for x in self.modalities]
+        self.modalities = ['spar_feature']
+        self.required_nodes = ['rs1', 'rs2', 'rs3', 'rs4', 'rs5', 'rs6']
 
         return model
 
     def infer(self, samples: dict[str, dict[int, np.ndarray]]):
-        arrays = {k: self.concat(v) for k, v in samples.items()}
+        data = [samples[f'{n}/{m}'][0] for n in self.required_nodes for m in self.modalities]
 
-        # split per-node per-mod data
-        node_arrays = {}
-        for k, v in arrays.items():
-            node, mod = k.split('/')
-            if node not in node_arrays:
-                node_arrays[node] = {}
-            node_arrays[node][mod] = v
+        seismic_data = [torch.from_numpy(a[:256]) for a in data]
+        acoustic_data = [torch.from_numpy(a[256:]) for a in data]
 
-        data = {}
-        for mod in self.modalities:
-            mod_video = []
-            mod_valid = []
-            for node in node_arrays:
-                if node not in data or mod not in data[node]:
-                    mod_video.append(torch.zeros(81, 1, 128, 1))
-                    mod_valid.append(0)
-                    continue
-                mod_data = node_arrays[node][mod]
-                if mod == 'geo':
-                    mod_data -= torch.mean(mod_data)
-                    mod_spec = librosa.feature.melspectrogram(
-                        y=mod_data,
-                        sr=200,
-                        n_fft=80,
-                        hop_length=5,
-                        n_mels=128,
-                        power=2.0,
-                    )
-                    mod_db = librosa.power_to_db(mod_spec, ref=np.max)
-                    mod_video = torch.from_numpy(mod_db).T.unsqueeze(1).unsqueeze(-1)
-                else:
-                    mod_spec = librosa.feature.melspectrogram(
-                        y=mod_data,
-                        sr=16000,
-                        n_fft=1600,
-                        hop_length=400,
-                        n_mels=128,
-                        power=2.0,
-                    )
-                    mod_db = librosa.power_to_db(mod_spec, ref=np.max)
-                    mod_video = torch.from_numpy(mod_db).T.unsqueeze(1).unsqueeze(-1)
-                mod_video.append(mod_video)
-                mod_valid.append(1)
-            mod_video = torch.cat(mod_video, dim=-1)
+        data = process_data(False, False, self.required_nodes, acoustic_data, seismic_data, False, None, None)
 
-            if mod == 'geo':
-                data['seismic']['data'] = (mod_video + 49.52) / 26.55
-                data['seismic']['valid'] = torch.tensor(mod_valid)
-            else:
-                data['acoustic']['data'] = (mod_video + 44.74) / 17.71
-                data['acoustic']['valid'] = torch.tensor(mod_valid)
+        outputs = self.model(data)
 
-        data['vantage_ids'] = torch.tensor([0, 1, 2, 3])
-
-        vantage_spatial_locations = self.model.args.dataset_config[
-            'vantage_spatial_locations'
-        ]
-        vantage_spatial_locations = [loc for loc in vantage_spatial_locations.values()]
-        data['vantage_spatial_locations'] = torch.tensor(vantage_spatial_locations)
-
-        with TimeProfiler() as timer:
-            logit = self.model(data)  # returns logits [[x, y, z, w]],
-        elapsed_ms = timer.elapsed_time_ns / 1e6
-        logger.debug(f'Time (ms) to infer: {elapsed_ms}')
-
-        result = dict(zip(np.arange(4), logit[0]))
-
-        return result
+        return outputs
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
@@ -152,6 +85,7 @@ def main(
 
     # initialize the class
     clf = SPAR(
+        modality=modality,
         conf=z_conf,
         twin_model=twin_model,
         twin_buff_len=twin_buff_len,

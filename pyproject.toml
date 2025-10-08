@@ -18,6 +18,7 @@ dependencies = [
     "acies-buffers @ git+ssh://github.com/acies-os/buffers.git",
     "deepsense_augmented @ git+ssh://github.com/acies-os/deepsense-augmented.git",
     "foundation-sense @ git+ssh://github.com/acies-os/FoundationSense.git",
+    "spar @ git+ssh://github.com/acies-os/SPAR.git"
 ]
 readme = "README.md"
 requires-python = ">= 3.10"

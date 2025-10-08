@@ -285,6 +285,70 @@ class Classifier(Service):
 
     # @time_diff_decorator
     def run_inference(self):
+
+        # currently I wrote the SPAR code separately but it should be general enough to be used for other cases
+        if self.modalities == ['spar_feature']:
+            keys = [f'{n}/{m}' for n in self.required_nodes for m in self.modalities]
+
+            try:
+                samples, meta_data = self.buffer.get(keys, 1)
+            except ValueError:
+                # not enough data
+                logger.debug(f'not enough data')
+                return
+
+            # run inference and record execution time
+            with TimeProfiler() as timer:
+                result = self.infer(samples)
+            infer_time_ms = timer.elapsed_time_ns / 1e6
+
+            # if isinstance(result, tuple):
+            #     result, representation = result
+            # else:
+            #     representation = None
+
+            # log inference result
+            result = [{'probs': {LABEL_TO_STR[k]: v for k, v in r['probs'].items()}, 'vehicle_geo_pred': r['vehicle_geo_pred']} for r in result]
+            metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
+            msg = self.make_msg('json', result, metadata)
+            log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
+            logger.debug(f'inference result: {log_msg}')
+
+            # log predicted label and confidence
+            preds, confidences, geo_preds = [], [], []
+            for r in result:
+                pred, confidence = max(r['probs'].items(), key=lambda x: x[1])
+                preds.append(pred)
+                confidences.append(confidence)
+                geo_preds.append(r['vehicle_geo_pred'])
+            one_meta = self.combine_meta(meta_data)
+            log_msg = {
+                'pred_label': preds,
+                'confidence': confidences,
+                'geo_pred': geo_preds,
+                'true_label': one_meta['label'],
+                'distance': one_meta['distance'],
+                'energy_geo': one_meta['mean_geo_energy'],
+                'energy_mic': one_meta['mean_mic_energy'],
+            }
+            logger.info(f'{log_msg}')
+
+            # # perform temporal ensemble
+            # if self.feature_twin:
+            #     self.twin_temp_ensemble(node, msg)
+            # else:
+            #     # self.send(self.pub_topic, msg)
+            #     self.temp_ensmeble(node, msg)
+            
+            # if representation is not None:
+            #     # publish representation to spar channel
+            #     feature = representation[0]
+            #     metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
+            #     msg = self.make_msg('array_f64', feature, metadata)
+            #     # logger.debug(f'type of representation: {type(representation[0])}, length: {len(representation[0])}')
+            #     topic_to = f'{node}/spar_feature'
+            #     self.send(topic_to, msg)
+
         node_keys = self.get_keys_per_node(self.modalities)
         for node, keys in node_keys.items():
             try:
@@ -333,12 +397,11 @@ class Classifier(Service):
             
             if representation is not None:
                 # publish representation to spar channel
-                result = {"representation": representation[0]}
+                feature = representation[0]
                 metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
-                msg = self.make_msg('json', result, metadata)
+                msg = self.make_msg('array_f64', feature, metadata)
                 # logger.debug(f'type of representation: {type(representation[0])}, length: {len(representation[0])}')
-                
-                topic_to = f'{node}/spar'
+                topic_to = f'{node}/spar_feature'
                 self.send(topic_to, msg)
 
     def temp_ensmeble(self, node, msg):
@@ -525,13 +588,13 @@ class Classifier(Service):
         if self.service_states.get('deactivated', False):
             return
 
-        if any(topic.endswith(x) for x in ['geo', 'mic']):
+        if any(topic.endswith(x) for x in ['geo', 'mic', 'spar_feature']):
             # msg.timestamp is in ns
             timestamp = int(msg.timestamp / 1e9)
             now = int(datetime.now().timestamp())
             # logger.debug(f'handle_message: {timestamp=}, lat={now-timestamp}, qsize={self.msg_q.qsize()}')
             array = np.array(msg.get_payload())
-            mod = 'geo' if topic.endswith('geo') else 'mic'
+            mod = 'geo' if topic.endswith('geo') else 'mic' if topic.endswith('mic') else 'spar_feature'
 
             # filter out low energy messages
             energy = np.std(array)
