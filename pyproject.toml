@@ -34,6 +34,7 @@ managed = true
 allow-direct-references = true
 
 [project.scripts]
+acies-spar = "acies.vehicle_classifier.spar:main"
 acies-vfm = "acies.vehicle_classifier.vfm:main"
 acies-ds = "acies.vehicle_classifier.ds:main"
 acies-noise-detector = "acies.vehicle_classifier.noise_detector:main"

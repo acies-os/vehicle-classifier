@@ -12,6 +12,10 @@ RUNCMD := `command -v uv || command -v rye || (echo "Please install uv" >&2 && e
 ns := `hostname -s`
 zrouter := '$ZROUTER'
 
+# ------------------------------ SPAR weights ------------------------------
+
+spar-weight := "/home/yizhuoc/multi-vantage-alignment/weights/demo_MAEBackbone/exp11_generative_MAE/demo_MAEBackbone_multi_vehicle_tracking_1.0_finetune_latest.pt"
+
 # ------------------------------ VirboFM weights ------------------------------
 #vfm-weight-2 := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
 #vfm-weight-geo := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_seismic_best.pt"
@@ -107,6 +111,17 @@ nd win-size='30': echo-zrouter
     --topic {{ ns }}/geo \
     --topic {{ ns }}/mic \
     --win-size {{ win-size }}
+
+# ---------------------------------- SPAR ----------------------------------
+
+# launch a SPAR classifier
+spar *FLAGS: echo-zrouter
+    LOGLEVEL=debug {{ RUNCMD }} run acies-spar {{ FLAGS }} \
+    --connect {{ zrouter }} \
+    --namespace {{ ns }} \
+    --proc_name spar \
+    --topic "*/spar_feature" \
+    --weight {{ spar-weight }}
 
 # ---------------------------------- VibroFM ----------------------------------
 

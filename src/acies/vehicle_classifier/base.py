@@ -27,11 +27,20 @@ logger = logging.getLogger('acies.infer')
 # }
 
 # GQ experiment
+# LABEL_TO_STR = {
+#     0: 'polaris',
+#     1: 'warthog',
+#     2: 'truck',
+#     3: 'husky',
+# }
+
+# GQ experiment
 LABEL_TO_STR = {
-    0: 'polaris',
-    1: 'warthog',
-    2: 'truck',
-    3: 'husky',
+    0: 'benz',
+    1: 'mazda',
+    2: 'lexus',
+    3: 'nissan',
+    4: 'background',
 }
 
 
@@ -245,7 +254,7 @@ class Classifier(Service):
         Returns:
             dict: The combined metadata.
         """
-        result = {'label': None, 'distance': None, 'mean_geo_energy': [], 'mean_mic_energy': []}
+        result = {'label': None, 'distance': None, 'mean_geo_energy': [], 'mean_mic_energy': [], 'mean_spar_feature_energy': []}
         oldest_key = 1e15
         for topic, topic_data in meta_data.items():
             try:
@@ -262,6 +271,7 @@ class Classifier(Service):
                     oldest_key = int(k)
         result['mean_geo_energy'] = np.mean(result['mean_geo_energy'])
         result['mean_mic_energy'] = np.mean(result['mean_mic_energy'])
+        result['mean_spar_feature_energy'] = np.mean(result['mean_spar_feature_energy'])
         result['oldest_timestamp'] = oldest_key
         return result
 
@@ -308,24 +318,24 @@ class Classifier(Service):
             #     representation = None
 
             # log inference result
-            result = [{'probs': {LABEL_TO_STR[k]: v for k, v in r['probs'].items()}, 'vehicle_geo_pred': r['vehicle_geo_pred']} for r in result]
+            result['probs'] = [{LABEL_TO_STR[k]: v for k, v in p.items()} for p in result['probs']]
             metadata = {'inference_time_ms': infer_time_ms, 'inputs': dict(meta_data)}
             msg = self.make_msg('json', result, metadata)
             log_msg = pretty(msg.to_dict(), max_seq_length=6, max_width=500, newline='')
             logger.debug(f'inference result: {log_msg}')
 
             # log predicted label and confidence
-            preds, confidences, geo_preds = [], [], []
-            for r in result:
-                pred, confidence = max(r['probs'].items(), key=lambda x: x[1])
+            preds, confidences = [], []
+            for p in result['probs']:
+                pred, confidence = max(p.items(), key=lambda x: x[1])
                 preds.append(pred)
                 confidences.append(confidence)
-                geo_preds.append(r['vehicle_geo_pred'])
+
             one_meta = self.combine_meta(meta_data)
             log_msg = {
                 'pred_label': preds,
                 'confidence': confidences,
-                'geo_pred': geo_preds,
+                'geo_pred': result['vehicle_geo_pred'],
                 'true_label': one_meta['label'],
                 'distance': one_meta['distance'],
                 'energy_geo': one_meta['mean_geo_energy'],

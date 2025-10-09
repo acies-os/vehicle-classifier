@@ -29,15 +29,16 @@ class SPAR(Classifier):
         )
 
         self.modalities = ['spar_feature']
-        self.required_nodes = ['rs1', 'rs2', 'rs3', 'rs4', 'rs5', 'rs6']
+        self.required_nodes = ['dvpg-gq-3-shake']
 
         return model
 
     def infer(self, samples: dict[str, dict[int, np.ndarray]]):
-        data = [samples[f'{n}/{m}'][0] for n in self.required_nodes for m in self.modalities]
+        # get the first value
+        data = [next(iter(samples[f'{n}/{m}'].values())) for n in self.required_nodes for m in self.modalities]
 
-        seismic_data = [torch.from_numpy(a[:256]) for a in data]
-        acoustic_data = [torch.from_numpy(a[256:]) for a in data]
+        seismic_data = [torch.from_numpy(a[:256]).to(torch.float32) for a in data]
+        acoustic_data = [torch.from_numpy(a[256:]).to(torch.float32) for a in data]
 
         data = process_data(False, False, self.required_nodes, acoustic_data, seismic_data, False, None, None)
 
