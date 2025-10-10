@@ -113,6 +113,64 @@ def ensemble(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
     return pred, meta
 
 
+def ensemble_multi_objects(buff: EnsembleBuffer, win: int, size: int, conf_thresh: dict):
+    """Perform ensemble voting on the buffered predictions.
+
+    Args:
+        buff (EnsembleBuffer): A buffer containing the predictions to ensemble.
+        win (int): The time window (in seconds) to consider for ensembling.
+        size (int): The minimum number of predictions required for ensembling.
+        conf_thresh (dict): A dictionary of confidence thresholds for each class.
+
+    Raises:
+        ValueError: If there are not enough predictions for ensembling.
+
+    Returns:
+        tuple[dict[str, float], dict]: The ensemble prediction and metadata.
+    """
+    now = int(time.time())
+    oldest = now - win
+    data = buff.get_range(oldest, now)
+
+    results = [json.loads(x['prediction']) for x in data]
+
+    if len(results) < size:
+        raise ValueError(f'Not enough data: {len(results)=} < {size}')
+
+    # crucially, we assume we only have at most one vehicle for each class
+    # get the list of confidence and geo for each label
+    confidence_list = defaultdict(list)
+    geo_list = defaultdict(list)
+    for result in results:
+        for p, geo in zip(result['probs'], result['vehicle_geo_pred']):
+            pred, confidence = max(p.items(), key=lambda x: x[1])
+            confidence_list[pred].append(confidence)
+            geo_list[pred].append(geo)
+    
+    # calculate the ensemble confidence, with hard voting, because of the poor calibration of the model
+    ensemble_confidence = {k: len(v)/len(results) for k, v in confidence_list.items()}
+
+    # calculate the ensemble geo, simply as the latest geo
+    ensemble_geo = {k: v[-1] for k, v in geo_list.items()}
+
+    meta_data = [json.loads(x['metadata']) for x in data]
+
+    infer_time_ms = [x['inference_time_ms'] for x in meta_data]
+    infer_time_ms = sum(infer_time_ms) / len(infer_time_ms)
+    inputs = defaultdict(dict)
+    for d in meta_data:
+        for k, v in d['inputs'].items():
+            inputs[k].update(v)
+    meta = {
+        'timestamp': now,
+        'inference_time_ms': infer_time_ms,
+        'inputs': dict(inputs),
+        'ensemble_size': len(data),
+    }
+    # logger.debug(f'DEV_DEBUG: {meta}')
+    return ensemble_confidence, ensemble_geo, meta
+
+
 def time_diff_decorator(func):
     """Decorator to log the time difference between consecutive calls to a function.
 
@@ -343,12 +401,12 @@ class Classifier(Service):
             }
             logger.info(f'{log_msg}')
 
-            # # perform temporal ensemble
-            # if self.feature_twin:
-            #     self.twin_temp_ensemble(node, msg)
-            # else:
-            #     # self.send(self.pub_topic, msg)
-            #     self.temp_ensmeble(node, msg)
+            # perform temporal ensemble
+            if self.feature_twin:
+                self.twin_temp_ensemble(node, msg)
+            else:
+                # self.send(self.pub_topic, msg)
+                self.temp_ensmeble(node, msg)
             
             # if representation is not None:
             #     # publish representation to spar channel
@@ -432,7 +490,10 @@ class Classifier(Service):
         ensemble_size = int(self.service_states.get('twin/ensemble_size', 1))
         try:
             # ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(ensemble_win, ensemble_size)
-            ensemble_result, ensemble_meta = ensemble(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
+            if self.modalities == ['spar_feature']:
+                ensemble_result, _, ensemble_meta = ensemble_multi_objects(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
+            else:
+                ensemble_result, ensemble_meta = ensemble(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
 
             if len(ensemble_result) == 0:
                 raise ValueError()
