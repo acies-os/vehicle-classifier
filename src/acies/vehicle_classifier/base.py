@@ -38,8 +38,8 @@ logger = logging.getLogger('acies.infer')
 LABEL_TO_STR = {
     0: 'benz',
     1: 'mazda',
-    2: 'lexus',
-    3: 'nissan',
+    2: 'nissan',
+    3: 'lexus',
     4: 'background',
 }
 
@@ -403,10 +403,10 @@ class Classifier(Service):
 
             # perform temporal ensemble
             if self.feature_twin:
-                self.twin_temp_ensemble(node, msg)
+                raise NotImplementedError('twin temporal ensemble is not implemented')
             else:
                 # self.send(self.pub_topic, msg)
-                self.temp_ensmeble(node, msg)
+                self.temp_ensmeble(None, msg)
             
             # if representation is not None:
             #     # publish representation to spar channel
@@ -491,18 +491,20 @@ class Classifier(Service):
         try:
             # ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(ensemble_win, ensemble_size)
             if self.modalities == ['spar_feature']:
-                ensemble_result, _, ensemble_meta = ensemble_multi_objects(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
+                ensemble_result, ensemble_geo, ensemble_meta = ensemble_multi_objects(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
+
+                
             else:
                 ensemble_result, ensemble_meta = ensemble(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
 
-            if len(ensemble_result) == 0:
-                raise ValueError()
+                if len(ensemble_result) == 0:
+                    raise ValueError()
 
-            # publish ensemble classification result
-            ensemble_msg = self.make_msg('json', ensemble_result, ensemble_meta)
-            topic_to = f'{node}/vehicle'
-            self.send(topic_to, ensemble_msg)
-            logger.debug(f'>>>>> {topic_to} [{ensemble_meta["ensemble_size"]}]: {ensemble_msg}')
+                # publish ensemble classification result based on which node is the closest to the predicted vehicle location
+                ensemble_msg = self.make_msg('json', ensemble_result, ensemble_meta)
+                topic_to = f'{node}/vehicle'
+                self.send(topic_to, ensemble_msg)
+                logger.debug(f'>>>>> {topic_to} [{ensemble_meta["ensemble_size"]}]: {ensemble_msg}')
 
         except ValueError:
             # not enough data

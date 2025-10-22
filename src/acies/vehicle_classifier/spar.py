@@ -29,7 +29,8 @@ class SPAR(Classifier):
         )
 
         self.modalities = ['spar_feature']
-        self.required_nodes = ['dvpg-gq-3-shake']
+        self.required_nodes = ['rs2']
+        self.vantage_spatial_locations = torch.tensor([[40.2883649,-88.1263023],[40.2885347, -88.1263043],[40.2888825,-88.1263087], [40.2890529,-88.1263074], [40.2887089,-88.1263067], [40.2892222,-88.1263120]], dtype=torch.float64)
 
         return model
 
@@ -40,7 +41,7 @@ class SPAR(Classifier):
         seismic_data = [torch.from_numpy(a[:256]).to(torch.float32) for a in data]
         acoustic_data = [torch.from_numpy(a[256:]).to(torch.float32) for a in data]
 
-        data = process_data(False, False, self.required_nodes, acoustic_data, seismic_data, False, None, None)
+        data = process_data(False, False, self.required_nodes, acoustic_data, seismic_data, False, None, None, self.vantage_spatial_locations)
 
         outputs = self.model(data)
 

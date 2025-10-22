@@ -14,7 +14,7 @@ zrouter := '$ZROUTER'
 
 # ------------------------------ SPAR weights ------------------------------
 
-spar-weight := "/home/yizhuoc/multi-vantage-alignment/weights/demo_MAEBackbone/exp11_generative_MAE/demo_MAEBackbone_multi_vehicle_tracking_1.0_finetune_latest.pt"
+spar-weight := "models/demo_MAEBackbone_multi_vehicle_tracking_1.0_finetune_latest.pt"
 
 # ------------------------------ VirboFM weights ------------------------------
 #vfm-weight-2 := "models/demo2024_Parkland_TransformerV4_vehicle_classification_1.0_finetune_yizhuoict15_best.pt"
@@ -30,7 +30,7 @@ spar-weight := "/home/yizhuoc/multi-vantage-alignment/weights/demo_MAEBackbone/e
 #vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_ictexclusive_1.0_multiclasslatest.pt"
 #vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_ictexclusive_1.0_multiclasslatest.pt"
 
-vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_gcqday1filtered_1.0_multiclassbest.pt"
+vfm-weight-2 := "models/Parkland_TransformerV4_vehicle_classification_finetune_ict2025sep_1.0_multiclassbest.pt"
 vfm-weight-geo := "models/Parkland_TransformerV4_vehicle_classification_finetune_seismic_gcq202410_1.0_multiclasslatest.pt"
 vfm-weight-mic := "models/Parkland_TransformerV4_vehicle_classification_finetune_audio_gcq202410_1.0_multiclasslatest.pt"
 
