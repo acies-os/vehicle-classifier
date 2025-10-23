@@ -406,7 +406,9 @@ class Classifier(Service):
                 raise NotImplementedError('twin temporal ensemble is not implemented')
             else:
                 # self.send(self.pub_topic, msg)
-                self.temp_ensmeble(None, msg)
+                self.temp_ensmeble("server", msg)
+
+            return
             
             # if representation is not None:
             #     # publish representation to spar channel
@@ -457,11 +459,11 @@ class Classifier(Service):
             logger.info(f'{log_msg}')
 
             # perform temporal ensemble
-            if self.feature_twin:
-                self.twin_temp_ensemble(node, msg)
-            else:
-                # self.send(self.pub_topic, msg)
-                self.temp_ensmeble(node, msg)
+            # if self.feature_twin:
+            #     self.twin_temp_ensemble(node, msg)
+            # else:
+            #     # self.send(self.pub_topic, msg)
+            #     self.temp_ensmeble(node, msg)
             
             if representation is not None:
                 # publish representation to spar channel
@@ -488,12 +490,41 @@ class Classifier(Service):
         )
         ensemble_win = int(self.service_states.get('twin/buff_len', 1))
         ensemble_size = int(self.service_states.get('twin/ensemble_size', 1))
+        print(f"ensemble win: {ensemble_win}, ensemble size: {ensemble_size}")
         try:
             # ensemble_result, ensemble_meta = self.ensemble_buff.ensemble(ensemble_win, ensemble_size)
             if self.modalities == ['spar_feature']:
                 ensemble_result, ensemble_geo, ensemble_meta = ensemble_multi_objects(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
 
-                
+                # send messages with the closest vantage as the topic, following the standard multi-label classification protocol
+                # this would be changed if the UI could support multiple object detection
+                # hardcoded the nodes for now for debugging purposes
+                nodes = ['rs1', 'rs2', 'rs3', 'rs5', 'rs6', 'rs10']
+
+                closest_vantages = {}
+                for pred, _ in ensemble_result.items():
+                    pred_geo = ensemble_geo[pred]
+                    # see which vantage is closest to the predicted vehicle location
+                    closest_vantage_index = np.argmin(np.linalg.norm(self.normalized_vantage_spatial_locations.numpy() - pred_geo, axis=1))
+                    closest_vantages[pred] = nodes[closest_vantage_index]
+                    print(self.normalized_vantage_spatial_locations.numpy())
+
+                for node in nodes:
+                    preds_cur_node = {'benz': 0, 'mazda': 0, 'nissan': 0, 'lexus': 0}
+                    should_send = False
+                    for pred, closest_vantage in closest_vantages.items():
+                        if closest_vantage == node:
+                            # this prediction should be reported with the current node as the topic
+                            confidence = ensemble_result[pred]
+                            preds_cur_node[pred] = confidence
+                            should_send = True
+                    if should_send:
+                        ensemble_msg = self.make_msg('json', preds_cur_node, ensemble_meta)
+                        topic_to = f'{node}/vehicle'
+                        self.send(topic_to, ensemble_msg)
+                        logger.debug(f'>>>>> {topic_to} [{ensemble_meta["ensemble_size"]}]: {ensemble_msg}')
+
+                    
             else:
                 ensemble_result, ensemble_meta = ensemble(self.ensemble_buff_db, ensemble_win, ensemble_size, {})
 
